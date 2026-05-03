@@ -1,0 +1,27 @@
+[package]
+name = "hawk-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "hawk"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+hawk-core = { path = "../hawk-core" }
+hawk-savepoint = { path = "../hawk-savepoint" }
+hawk-vault = { path = "../hawk-vault" }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }
+hawk-bus = { path = "../hawk-bus" }
+hawk-verify = { path = "../hawk-verify" }
+hawk-compress = { path = "../hawk-compress" }
+hawk-watch = { path = "../hawk-watch" }
+dirs-next = { workspace = true }
+hawk-ui = { path = "../hawk-ui" }
+hawk-sdk-rust = { path = "../hawk-sdk-rust" }
+hawk-nest = { path = "../hawk-nest" }
+hawk-sync = { path = "../hawk-sync" }
