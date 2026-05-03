@@ -139,18 +139,30 @@ impl AgentManager {
     }
 
     pub fn list(&self) -> Vec<AgentStatus> {
+        use sysinfo::{Pid, System};
+        let mut sys = System::new_all();
+        sys.refresh_all();
+
         self.agents
             .lock()
             .unwrap()
             .values()
-            .map(|(_, rec)| AgentStatus {
-                pid: rec.pid,
-                name: rec.name.clone(),
-                state: rec.state.clone(),
-                uptime: rec.started_at.elapsed(),
-                cpu_percent: 0.0,
-                memory_bytes: 0,
-                open_fds: 0,
+            .map(|(_, rec)| {
+                let sysinfo_pid = Pid::from_u32(rec.pid);
+                let (cpu_percent, memory_bytes) = sys
+                    .process(sysinfo_pid)
+                    .map(|p| (p.cpu_usage(), p.memory()))
+                    .unwrap_or((0.0, 0));
+
+                AgentStatus {
+                    pid: rec.pid,
+                    name: rec.name.clone(),
+                    state: rec.state.clone(),
+                    uptime: rec.started_at.elapsed(),
+                    cpu_percent,
+                    memory_bytes,
+                    open_fds: 0, // platform-specific; /proc/<pid>/fd on Linux
+                }
             })
             .collect()
     }
