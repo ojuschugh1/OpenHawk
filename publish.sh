@@ -26,6 +26,17 @@ publish() {
     exit 1
   fi
 
+  if echo "$output" | grep -q "SSL connect error\|Operation timed out\|timed out"; then
+    echo "SSL timeout, retrying in 15s..."
+    sleep 15
+    output=$(cargo publish -p "$crate" 2>&1)
+    code=$?
+    if echo "$output" | grep -q "already exists"; then
+      echo "${crate} already on crates.io, skipping."
+      return 0
+    fi
+  fi
+
   if [ $code -ne 0 ]; then
     echo "$output"
     echo ""
