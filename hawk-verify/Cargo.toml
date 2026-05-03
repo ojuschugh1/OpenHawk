@@ -1,5 +1,5 @@
 [package]
-name = "hawk-verify"
+name = "openhawk-verify"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

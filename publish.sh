@@ -14,26 +14,26 @@ publish() {
 }
 
 # tier 1 — no local deps
-publish hawk-bus
-publish hawk-compress
-publish hawk-memory
-publish hawk-nest
-publish hawk-sync
-publish hawk-verify
-publish hawk-watch
-publish hawk-core
+publish openhawk-bus
+publish openhawk-compress
+publish openhawk-memory
+publish openhawk-nest
+publish openhawk-sync
+publish openhawk-verify
+publish openhawk-watch
+publish openhawk-core
 
 # tier 2 — depend on tier 1
-publish hawk-savepoint
-publish hawk-vault
-publish hawk-sdk-rust
+publish openhawk-savepoint
+publish openhawk-vault
+publish openhawk-sdk
 
 # tier 3 — depends on tier 1 + 2
-publish hawk-ui
+publish openhawk-ui
 
 # tier 4 — the CLI binary (depends on everything)
-publish hawk-cli
+publish openhawk
 
 echo ""
 echo "all crates published."
-echo "install with: cargo install hawk-cli"
+echo "install with: cargo install openhawk"

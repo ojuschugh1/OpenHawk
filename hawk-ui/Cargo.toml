@@ -1,5 +1,5 @@
 [package]
-name = "hawk-ui"
+name = "openhawk-ui"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -17,6 +17,6 @@ tokio = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
-hawk-core = { path = "../hawk-core", version = "0.1.0" }
-hawk-savepoint = { path = "../hawk-savepoint", version = "0.1.0" }
+hawk-core = { path = "../hawk-core", version = "0.1.0", package = "openhawk-core" }
+hawk-savepoint = { path = "../hawk-savepoint", version = "0.1.0", package = "openhawk-savepoint" }
 dirs-next = { workspace = true }

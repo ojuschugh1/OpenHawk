@@ -1,5 +1,5 @@
 [package]
-name = "hawk-nest"
+name = "openhawk-nest"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

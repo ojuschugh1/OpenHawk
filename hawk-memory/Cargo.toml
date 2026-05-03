@@ -1,5 +1,5 @@
 [package]
-name = "hawk-memory"
+name = "openhawk-memory"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

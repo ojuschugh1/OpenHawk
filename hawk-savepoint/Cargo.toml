@@ -1,5 +1,5 @@
 [package]
-name = "hawk-savepoint"
+name = "openhawk-savepoint"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,7 +11,7 @@ keywords = ["snapshot", "rollback", "agent", "filesystem", "ai"]
 categories = ["filesystem", "command-line-utilities"]
 
 [dependencies]
-hawk-core = { path = "../hawk-core", version = "0.1.0" }
+hawk-core = { path = "../hawk-core", version = "0.1.0", package = "openhawk-core" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

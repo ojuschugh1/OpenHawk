@@ -1,5 +1,5 @@
 [package]
-name = "hawk-bus"
+name = "openhawk-bus"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

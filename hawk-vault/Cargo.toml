@@ -1,5 +1,5 @@
 [package]
-name = "hawk-vault"
+name = "openhawk-vault"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,7 +11,7 @@ keywords = ["vault", "secrets", "encryption", "keychain", "ai"]
 categories = ["cryptography", "command-line-utilities"]
 
 [dependencies]
-hawk-core = { path = "../hawk-core", version = "0.1.0" }
+hawk-core = { path = "../hawk-core", version = "0.1.0", package = "openhawk-core" }
 aes-gcm = { workspace = true }
 argon2 = { workspace = true }
 keyring = { workspace = true }

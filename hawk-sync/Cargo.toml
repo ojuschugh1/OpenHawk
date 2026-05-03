@@ -1,5 +1,5 @@
 [package]
-name = "hawk-sync"
+name = "openhawk-sync"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

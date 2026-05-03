@@ -1,5 +1,5 @@
 [package]
-name = "hawk-core"
+name = "openhawk-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

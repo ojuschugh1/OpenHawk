@@ -1,5 +1,5 @@
 [package]
-name = "hawk-watch"
+name = "openhawk-watch"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
