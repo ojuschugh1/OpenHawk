@@ -18,6 +18,14 @@ publish() {
     return 0
   fi
 
+  if echo "$output" | grep -q "429 Too Many Requests"; then
+    retry_after=$(echo "$output" | grep -o 'after [^a]*GMT' | head -1)
+    echo ""
+    echo "Rate limited by crates.io. Try again $retry_after"
+    echo "Then just re-run: ./publish.sh"
+    exit 1
+  fi
+
   if [ $code -ne 0 ]; then
     echo "$output"
     echo ""
