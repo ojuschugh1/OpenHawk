@@ -11,15 +11,10 @@ use crate::db::init_database;
 use crate::manifest::{AgentInfo, AgentManifest, Capabilities, LlmConfig, Permissions, Resources, TalonRequirements};
 use crate::orchestrator::{Orchestrator, SubTaskStatus};
 use crate::resource_monitor::{ResourceEvent, ResourceLimits, ResourceMonitor};
-use hawk_bus::{BusMessage, MessageBus};
 
 fn write_file(dir: &Path, name: &str, content: &[u8]) {
     let mut f = fs::File::create(dir.join(name)).unwrap();
     f.write_all(content).unwrap();
-}
-
-fn valid_msg(method: &str, payload: serde_json::Value) -> BusMessage {
-    BusMessage { jsonrpc: "2.0".into(), method: method.into(), params: payload, id: None }
 }
 
 // ── snapshot workflow ─────────────────────────────────────────────────────────
@@ -91,48 +86,8 @@ fn test_snapshot_metadata_persisted_in_db() {
 }
 
 // ── message bus workflow ──────────────────────────────────────────────────────
-
-/// Req 3.6, 14.1 — subscribe agent → publish → verify delivery
-#[tokio::test]
-async fn test_bus_publish_delivers_to_subscriber() {
-    let bus = MessageBus::new();
-    let mut agent1_rx = bus.subscribe(1, "research.done").unwrap();
-
-    bus.publish("research.done", valid_msg("research.done", serde_json::json!({ "result": "summary" }))).await.unwrap();
-
-    let received = agent1_rx.recv().await.unwrap();
-    assert_eq!(received.method, "research.done");
-    assert_eq!(received.params["result"], "summary");
-}
-
-/// Req 3.6, 14.1, 14.2 — two agents on different topics; only matching subscriber receives
-#[tokio::test]
-async fn test_bus_two_agents_topic_isolation() {
-    let bus = MessageBus::new();
-    let mut agent1_rx = bus.subscribe(1, "topic.a").unwrap();
-    let mut agent2_rx = bus.subscribe(2, "topic.b").unwrap();
-
-    bus.publish("topic.a", valid_msg("event.a", serde_json::json!({}))).await.unwrap();
-
-    let msg = agent1_rx.recv().await.unwrap();
-    assert_eq!(msg.method, "event.a");
-    assert!(agent2_rx.try_recv().is_err());
-}
-
-/// Req 14.1, 14.2 — both agents on same topic receive the broadcast
-#[tokio::test]
-async fn test_bus_broadcast_to_multiple_subscribers() {
-    let bus = MessageBus::new();
-    let mut rx1 = bus.subscribe(10, "broadcast.channel").unwrap();
-    let mut rx2 = bus.subscribe(20, "broadcast.channel").unwrap();
-
-    bus.publish("broadcast.channel", valid_msg("system.alert", serde_json::json!({ "level": "warning" }))).await.unwrap();
-
-    let m1 = rx1.recv().await.unwrap();
-    let m2 = rx2.recv().await.unwrap();
-    assert_eq!(m1.method, "system.alert");
-    assert_eq!(m2.method, "system.alert");
-}
+// Bus integration tests live in hawk-bus/src/lib.rs where hawk-bus is the
+// primary crate. Keeping them there avoids a cross-crate dev-dependency.
 
 // ── resource monitor workflow ─────────────────────────────────────────────────
 

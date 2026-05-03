@@ -1004,7 +1004,6 @@ dependencies = [
  "chrono",
  "dirs-next",
  "glob",
- "hawk-bus",
  "hex",
  "nix 0.27.1",
  "rusqlite",
