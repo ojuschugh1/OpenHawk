@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 # Publish all OpenHawk crates to crates.io in dependency order.
 # Run from the openhawk/ directory.
+# Safe to re-run — already-published crates are skipped automatically.
 set -e
 
-WAIT=30  # seconds between publishes for crates.io indexing
+WAIT=30
 
 publish() {
+  local crate=$1
   echo ""
-  echo "publishing $1..."
-  cargo publish -p "$1"
-  echo "$1 published. waiting ${WAIT}s for crates.io to index..."
+  echo "publishing $crate..."
+
+  # skip if already on crates.io
+  if cargo search "$crate" 2>/dev/null | grep -q "^$crate "; then
+    echo "$crate already published, skipping."
+    return
+  fi
+
+  cargo publish -p "$crate"
+  echo "$crate published. waiting ${WAIT}s for crates.io to index..."
   sleep $WAIT
 }
 
@@ -31,7 +40,7 @@ publish openhawk-sdk
 # tier 3 — depends on tier 1 + 2
 publish openhawk-ui
 
-# tier 4 — the CLI binary (depends on everything)
+# tier 4 — the CLI binary
 publish openhawk
 
 echo ""
