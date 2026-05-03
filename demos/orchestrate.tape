@@ -12,7 +12,7 @@ Set TypingSpeed 60ms
 Hide
 Type `export MOCK="$PWD/demos/mock_hawk.sh"`
 Enter
-Type `alias hawk='bash "$MOCK"'`
+Type `alias openhawk='bash "$MOCK"'`
 Enter
 Show
 
@@ -20,7 +20,7 @@ Type "# decompose a task — parallel with 'and', sequential with 'then'"
 Enter
 Sleep 400ms
 
-Type `hawk orchestrate "research quantum computing and write a summary then review it"`
+Type `openhawk orchestrate "research quantum computing and write a summary then review it"`
 Sleep 500ms
 Enter
 Sleep 3200ms

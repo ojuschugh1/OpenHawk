@@ -11,7 +11,7 @@ keywords = ["agent", "ai", "cli", "os", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
-name = "hawk"
+name = "openhawk"
 path = "src/main.rs"
 
 [dependencies]

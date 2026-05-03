@@ -111,7 +111,7 @@ pub enum HealingCommand {
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "hawk",
+    name = "openhawk",
     about = "OpenHawk Agent OS — manage AI agents like real processes",
     before_help = banner_str(),
     disable_version_flag = false,

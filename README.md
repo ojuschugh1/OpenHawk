@@ -36,11 +36,11 @@ This puts the `hawk` binary in `~/.cargo/bin/`. Make sure that's on your PATH:
 
 Verify it works:
 
-    hawk --help
+    openhawk --help
 
 First run will check for companion tools and prompt you to install them:
 
-    hawk setup --yes
+    openhawk setup --yes
 
 That installs sqz, ghostdep, claimcheck, etch, and aura into `~/.local/bin/`.
 
@@ -63,7 +63,7 @@ Prerequisites:
 
 COMPANION TOOLS
 
-OpenHawk integrates with these tools for full functionality. Run `hawk setup --yes` to install them all automatically, or install individually:
+OpenHawk integrates with these tools for full functionality. Run `openhawk setup --yes` to install them all automatically, or install individually:
 
     sqz         token compression (60-92% savings on repeated reads)
     ghostdep    phantom dependency detector
@@ -73,19 +73,19 @@ OpenHawk integrates with these tools for full functionality. Run `hawk setup --y
 
 Check what's installed:
 
-    hawk setup
+    openhawk setup
 
 Install missing tools:
 
-    hawk setup --yes
+    openhawk setup --yes
 
 Install a specific tool:
 
-    hawk setup --only sqz --yes
+    openhawk setup --only sqz --yes
 
 Force reinstall all:
 
-    hawk setup --force --yes
+    openhawk setup --force --yes
 
 ---
 
@@ -100,22 +100,22 @@ PLATFORMS
 QUICK START
 
     # spawn an agent
-    hawk run "python my_agent.py"
+    openhawk run "python my_agent.py"
 
     # list running agents
-    hawk ps
+    openhawk ps
 
     # store a secret
-    hawk vault set OPENAI_API_KEY sk-proj-abc123
+    openhawk vault set OPENAI_API_KEY sk-proj-abc123
 
     # orchestrate a multi-agent task
-    hawk orchestrate "research quantum computing and write a summary then review it"
+    openhawk orchestrate "research quantum computing and write a summary then review it"
 
     # scaffold a new agent project
-    hawk sdk init python --name my-agent --output ~/projects
+    openhawk sdk init python --name my-agent --output ~/projects
 
     # see token savings from sqz
-    hawk stats tokens
+    openhawk stats tokens
 
 ---
 
@@ -149,7 +149,7 @@ OpenHawk reads configuration from ~/.hawk/config.toml. Create one:
 
 View effective config:
 
-    hawk config show
+    openhawk config show
 
 Output:
 
@@ -164,11 +164,11 @@ Output:
 
 Set a value:
 
-    hawk config set privacy.mode air-gapped
+    openhawk config set privacy.mode air-gapped
 
 Show LLM providers:
 
-    hawk config llm
+    openhawk config llm
 
 ---
 
@@ -178,9 +178,9 @@ Spawn an agent (any command):
 
 ![Agent lifecycle demo](demos/agents.gif)
 
-    hawk run "python research_agent.py"
-    hawk run "node my-agent/dist/index.js"
-    hawk run "sleep 300"
+    openhawk run "python research_agent.py"
+    openhawk run "node my-agent/dist/index.js"
+    openhawk run "sleep 300"
 
 Output:
 
@@ -188,7 +188,7 @@ Output:
 
 List running agents:
 
-    hawk ps
+    openhawk ps
 
 Output:
 
@@ -197,9 +197,9 @@ Output:
 
 Pause, resume, stop:
 
-    hawk pause 42981
-    hawk resume 42981
-    hawk stop 42981
+    openhawk pause 42981
+    openhawk resume 42981
+    openhawk stop 42981
 
 ---
 
@@ -209,11 +209,11 @@ OpenHawk creates a snapshot before every agent task using OS-native Copy-on-Writ
 
 Roll back to a snapshot:
 
-    hawk undo <snapshot-id>
+    openhawk undo <snapshot-id>
 
 View what changed since a snapshot:
 
-    hawk diff <snapshot-id>
+    openhawk diff <snapshot-id>
 
 Output:
 
@@ -231,11 +231,11 @@ Secrets are encrypted with AES-256-GCM and stored locally. Keys are derived from
 
 Store a secret:
 
-    hawk vault set OPENAI_API_KEY sk-proj-abc123
+    openhawk vault set OPENAI_API_KEY sk-proj-abc123
 
 List stored keys (values are never shown):
 
-    hawk vault list
+    openhawk vault list
 
 Output:
 
@@ -243,7 +243,7 @@ Output:
 
 Inject into an agent's environment (never printed):
 
-    hawk vault get OPENAI_API_KEY
+    openhawk vault get OPENAI_API_KEY
 
 Output:
 
@@ -251,7 +251,7 @@ Output:
 
 Delete a secret:
 
-    hawk vault rm OPENAI_API_KEY
+    openhawk vault rm OPENAI_API_KEY
 
 ---
 
@@ -261,7 +261,7 @@ Decompose a complex task across agents. Use "and" for parallel, "then" for seque
 
 ![Orchestration demo](demos/orchestrate.gif)
 
-    hawk orchestrate "research quantum computing and write a summary then review it"
+    openhawk orchestrate "research quantum computing and write a summary then review it"
 
 Output:
 
@@ -293,15 +293,15 @@ Generate a minimal agent project in your preferred language:
 
 Rust:
 
-    hawk sdk init rust --name my-research-agent --output ~/projects
+    openhawk sdk init rust --name my-research-agent --output ~/projects
 
 Python:
 
-    hawk sdk init python --name data-pipeline --output ~/projects
+    openhawk sdk init python --name data-pipeline --output ~/projects
 
 TypeScript:
 
-    hawk sdk init typescript --name web-scraper --output ~/projects
+    openhawk sdk init typescript --name web-scraper --output ~/projects
 
 Each scaffold includes:
 - Agent_Manifest.toml (permissions, resources, capabilities)
@@ -334,7 +334,7 @@ MESSAGE BUS
 
 Agents communicate over a JSON-RPC 2.0 bus. Inspect active topics:
 
-    hawk bus inspect
+    openhawk bus inspect
 
 Output:
 
@@ -352,19 +352,19 @@ MONITORING AND OBSERVABILITY
 
 Watch report (API drift + phantom dependencies):
 
-    hawk watch report
+    openhawk watch report
 
 Token compression stats (real data from sqz when installed):
 
-    hawk stats tokens
+    openhawk stats tokens
 
 Cost tracking per agent:
 
-    hawk stats cost
+    openhawk stats cost
 
 Live CPU and memory per agent:
 
-    hawk ps
+    openhawk ps
 
 Output:
 
@@ -379,20 +379,20 @@ Sync agents and memory across devices over LAN. All data is encrypted with AES-2
 
 Enable sync:
 
-    hawk sync enable "my-shared-secret-phrase"
+    openhawk sync enable "my-shared-secret-phrase"
 
 Mark items for selective sync:
 
-    hawk sync select my-research-agent
-    hawk sync select memory:research-namespace
+    openhawk sync select my-research-agent
+    openhawk sync select memory:research-namespace
 
 Check status:
 
-    hawk sync status
+    openhawk sync status
 
 Set conflict resolution strategy:
 
-    hawk sync resolve --strategy last-write
+    openhawk sync resolve --strategy last-write
 
 Options: last-write, manual, merge
 
@@ -404,19 +404,19 @@ OpenHawk detects repeated action sequences and offers to automate them.
 
 List detected patterns:
 
-    hawk patterns list
+    openhawk patterns list
 
 Accept a pattern (generates an Agent_Manifest):
 
-    hawk patterns accept <pattern-id>
+    openhawk patterns accept <pattern-id>
 
 Decline (suppresses future offers):
 
-    hawk patterns decline <pattern-id>
+    openhawk patterns decline <pattern-id>
 
 Re-enable declined patterns:
 
-    hawk patterns reset
+    openhawk patterns reset
 
 ---
 
@@ -429,7 +429,7 @@ escalating.
 
 View healing history for an agent:
 
-    hawk healing history <agent-pid>
+    openhawk healing history <agent-pid>
 
 ---
 
@@ -439,11 +439,11 @@ Talons are community-contributed plugins (browser automation, Slack, GitHub, etc
 
 Install a Talon:
 
-    hawk talon install browser-talon
+    openhawk talon install browser-talon
 
 List installed Talons:
 
-    hawk talon list
+    openhawk talon list
 
 Talons are signature-verified before loading. A failing Talon is isolated and cannot crash the kernel.
 
@@ -453,15 +453,15 @@ HAWKNEST MARKETPLACE
 
 Search for community packages:
 
-    hawk nest search "browser automation"
+    openhawk nest search "browser automation"
 
 Install a package:
 
-    hawk nest install browser-talon
+    openhawk nest install browser-talon
 
 Publish your own:
 
-    hawk nest publish ./my-agent/
+    openhawk nest publish ./my-agent/
 
 Packages are validated (Agent_Manifest.toml required, semver enforced) and signature-verified.
 
@@ -471,7 +471,7 @@ HAWKEYE TUI DASHBOARD
 
 Launch the full-screen terminal dashboard:
 
-    hawk eye
+    openhawk eye
 
 Keyboard shortcuts:
 - j/k or arrows: navigate agent list
@@ -487,7 +487,7 @@ AIR-GAPPED MODE
 
 Block all outbound network requests:
 
-    hawk config set privacy.mode air-gapped
+    openhawk config set privacy.mode air-gapped
 
 In air-gapped mode:
 - All LLM requests route to local providers only (Ollama, llama.cpp)
@@ -496,7 +496,7 @@ In air-gapped mode:
 
 Disable:
 
-    hawk config set privacy.mode standard
+    openhawk config set privacy.mode standard
 
 ---
 
@@ -504,7 +504,7 @@ SESSION REPLAY
 
 Replay an agent session step by step:
 
-    hawk replay <session-id>
+    openhawk replay <session-id>
 
 Output:
 
@@ -516,7 +516,7 @@ Output:
 
 Jump to a specific step (shows full context at that point):
 
-    hawk replay <session-id> --step 2
+    openhawk replay <session-id> --step 2
 
 ---
 
@@ -524,7 +524,7 @@ VERIFICATION
 
 Verify that an agent actually completed what it claimed:
 
-    hawk verify <session-id>
+    openhawk verify <session-id>
 
 Output:
 
@@ -540,7 +540,7 @@ Output:
 PROJECT STRUCTURE
 
     openhawk/
-    |-- hawk-cli/          hawk binary (clap CLI)
+    |-- hawk-cli/          openhawk binary (clap CLI)
     |-- hawk-core/         kernel: lifecycle, permissions, orchestration,
     |                      config, patterns, healing, LLM routing, sessions
     |-- hawk-savepoint/    filesystem snapshots (Perch)
@@ -649,59 +649,59 @@ No data leaves your machine unless you explicitly enable sync or use cloud LLM p
 
 COMMAND REFERENCE
 
-    hawk run <command>                    Spawn an agent process
-    hawk stop <pid>                       Stop an agent (graceful, then force)
-    hawk pause <pid>                      Suspend an agent
-    hawk resume <pid>                     Resume a suspended agent
-    hawk ps                               List managed agents
+    openhawk run <command>                    Spawn an agent process
+    openhawk stop <pid>                       Stop an agent (graceful, then force)
+    openhawk pause <pid>                      Suspend an agent
+    openhawk resume <pid>                     Resume a suspended agent
+    openhawk ps                               List managed agents
 
-    hawk undo [snapshot-id]               Roll back to a snapshot
-    hawk diff <snapshot-id>               Show file changes since snapshot
+    openhawk undo [snapshot-id]               Roll back to a snapshot
+    openhawk diff <snapshot-id>               Show file changes since snapshot
 
-    hawk vault set <key> <value>          Store an encrypted secret
-    hawk vault get <key>                  Inject secret into environment
-    hawk vault rm <key>                   Delete a secret
-    hawk vault list                       List key names
+    openhawk vault set <key> <value>          Store an encrypted secret
+    openhawk vault get <key>                  Inject secret into environment
+    openhawk vault rm <key>                   Delete a secret
+    openhawk vault list                       List key names
 
-    hawk config show                      Show effective configuration
-    hawk config set <key> <value>         Set a config value
-    hawk config llm                       Show LLM provider status
+    openhawk config show                      Show effective configuration
+    openhawk config set <key> <value>         Set a config value
+    openhawk config llm                       Show LLM provider status
 
-    hawk orchestrate <task>               Decompose and execute a multi-agent task
-    hawk trust <agent-name>               Bypass permission checks for session
+    openhawk orchestrate <task>               Decompose and execute a multi-agent task
+    openhawk trust <agent-name>               Bypass permission checks for session
 
-    hawk verify <session-id>              Verify agent claims against evidence
-    hawk replay <session-id> [--step N]   Replay a session
+    openhawk verify <session-id>              Verify agent claims against evidence
+    openhawk replay <session-id> [--step N]   Replay a session
 
-    hawk bus inspect                      Show bus topics and queue depths
-    hawk watch report                     API drift and dependency report
-    hawk stats tokens                     Token compression stats
-    hawk stats cost                       Per-agent cost breakdown
+    openhawk bus inspect                      Show bus topics and queue depths
+    openhawk watch report                     API drift and dependency report
+    openhawk stats tokens                     Token compression stats
+    openhawk stats cost                       Per-agent cost breakdown
 
-    hawk talon install <name>             Install a plugin
-    hawk talon list                       List installed plugins
+    openhawk talon install <name>             Install a plugin
+    openhawk talon list                       List installed plugins
 
-    hawk nest search <query>              Search marketplace
-    hawk nest install <name>              Install a package
-    hawk nest publish <path>              Publish a package
+    openhawk nest search <query>              Search marketplace
+    openhawk nest install <name>              Install a package
+    openhawk nest publish <path>              Publish a package
 
-    hawk sdk init <lang> --name <name>    Scaffold an agent project
-    hawk sdk info                         Show SDK version
+    openhawk sdk init <lang> --name <name>    Scaffold an agent project
+    openhawk sdk info                         Show SDK version
 
-    hawk sync enable <secret>             Enable cross-device sync
-    hawk sync select <item>               Mark item for sync
-    hawk sync status                      Show sync status
-    hawk sync resolve --strategy <s>      Set conflict resolution
+    openhawk sync enable <secret>             Enable cross-device sync
+    openhawk sync select <item>               Mark item for sync
+    openhawk sync status                      Show sync status
+    openhawk sync resolve --strategy <s>      Set conflict resolution
 
-    hawk patterns list                    Show detected patterns
-    hawk patterns accept <id>             Accept and automate a pattern
-    hawk patterns decline <id>            Suppress a pattern
-    hawk patterns reset                   Re-enable declined patterns
+    openhawk patterns list                    Show detected patterns
+    openhawk patterns accept <id>             Accept and automate a pattern
+    openhawk patterns decline <id>            Suppress a pattern
+    openhawk patterns reset                   Re-enable declined patterns
 
-    hawk healing history <pid>            Show self-healing events
-    hawk healing status                   Show healing status
+    openhawk healing history <pid>            Show self-healing events
+    openhawk healing status                   Show healing status
 
-    hawk eye                              Launch TUI dashboard
+    openhawk eye                              Launch TUI dashboard
 
 ---
 

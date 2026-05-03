@@ -12,7 +12,7 @@ Set TypingSpeed 60ms
 Hide
 Type `export MOCK="$PWD/demos/mock_hawk.sh"`
 Enter
-Type `alias hawk='bash "$MOCK"'`
+Type `alias openhawk='bash "$MOCK"'`
 Enter
 Show
 
@@ -20,17 +20,17 @@ Type "# store an API key — encrypted with AES-256-GCM"
 Enter
 Sleep 400ms
 
-Type "hawk vault set OPENAI_API_KEY sk-proj-abc123"
+Type "openhawk vault set OPENAI_API_KEY sk-proj-abc123"
 Sleep 500ms
 Enter
 Sleep 800ms
 
-Type "hawk vault list"
+Type "openhawk vault list"
 Sleep 400ms
 Enter
 Sleep 700ms
 
-Type "hawk vault get OPENAI_API_KEY"
+Type "openhawk vault get OPENAI_API_KEY"
 Sleep 400ms
 Enter
 Sleep 1000ms

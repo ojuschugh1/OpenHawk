@@ -473,7 +473,7 @@ pub fn run_setup(opts: SetupOptions) -> anyhow::Result<()> {
     if failed == 0 {
         mark_setup_done();
         println!();
-        println!("All tools ready. Run 'hawk --help' to get started.");
+        println!("All tools ready. Run 'openhawk --help' to get started.");
     } else {
         println!();
         println!("Some tools failed. Retry with:");
@@ -514,8 +514,8 @@ pub fn maybe_first_run() {
         println!("  {name}");
     }
     println!();
-    println!("Run 'hawk setup' to install them automatically.");
-    println!("Run 'hawk setup --yes' to install without prompts.");
+    println!("Run 'openhawk setup' to install them automatically.");
+    println!("Run 'openhawk setup --yes' to install without prompts.");
     println!();
 
     mark_setup_done();

@@ -12,7 +12,7 @@ Set TypingSpeed 55ms
 Hide
 Type `export MOCK="$PWD/demos/mock_hawk.sh"`
 Enter
-Type `alias hawk='bash "$MOCK"'`
+Type `alias openhawk='bash "$MOCK"'`
 Enter
 Show
 
@@ -20,12 +20,12 @@ Show
 Type "# store an API key (AES-256-GCM encrypted)"
 Enter
 Sleep 300ms
-Type "hawk vault set OPENAI_API_KEY sk-proj-abc123"
+Type "openhawk vault set OPENAI_API_KEY sk-proj-abc123"
 Sleep 450ms
 Enter
 Sleep 750ms
 
-Type "hawk vault list"
+Type "openhawk vault list"
 Sleep 350ms
 Enter
 Sleep 650ms
@@ -34,12 +34,12 @@ Sleep 650ms
 Type "# spawn a research agent"
 Enter
 Sleep 300ms
-Type `hawk run "python research_agent.py"`
+Type `openhawk run "python research_agent.py"`
 Sleep 450ms
 Enter
 Sleep 750ms
 
-Type "hawk ps"
+Type "openhawk ps"
 Sleep 350ms
 Enter
 Sleep 700ms
@@ -48,7 +48,7 @@ Sleep 700ms
 Type "# decompose a complex task across agents"
 Enter
 Sleep 300ms
-Type `hawk orchestrate "research quantum computing and write a summary then review it"`
+Type `openhawk orchestrate "research quantum computing and write a summary then review it"`
 Sleep 500ms
 Enter
 Sleep 3000ms
@@ -57,7 +57,7 @@ Sleep 3000ms
 Type "# agent corrupted a file? roll back instantly"
 Enter
 Sleep 300ms
-Type "hawk undo"
+Type "openhawk undo"
 Sleep 400ms
 Enter
 Sleep 850ms
@@ -66,7 +66,7 @@ Sleep 850ms
 Type "# verify the agent actually did what it claimed"
 Enter
 Sleep 300ms
-Type "hawk verify sess-abc123"
+Type "openhawk verify sess-abc123"
 Sleep 400ms
 Enter
 Sleep 1100ms
