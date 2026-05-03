@@ -53,6 +53,12 @@ pub struct AuthToken {
 
 #[derive(Serialize, Deserialize, Default)]
 struct VaultFile {
+    /// Random 16-byte salt used for passphrase KDF, hex-encoded.
+    /// Generated once on first authenticate() and stored here.
+    /// Empty string means legacy vault (no stored salt) — treated as
+    /// SystemKeychain-only; passphrase auth will regenerate a fresh salt.
+    #[serde(default)]
+    kdf_salt: String,
     entries: HashMap<String, VaultEntry>,
 }
 
@@ -129,27 +135,25 @@ impl Vault {
             .map_err(|e| VaultError::Decryption(e.to_string()))
     }
 
-    fn derive_key(passphrase: &str, salt: &str) -> Result<[u8; 32]> {
+    /// Derive a 32-byte key from a passphrase and a 16-byte random salt.
+    /// The salt must be unique per vault and stored in the vault file —
+    /// never use the passphrase itself as the salt (defeats Argon2's purpose).
+    fn derive_key(passphrase: &str, salt_bytes: &[u8; 16]) -> Result<[u8; 32]> {
         let params = Params::new(65536, 3, 1, Some(32))
             .map_err(|e| VaultError::KeyDerivation(e.to_string()))?;
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-
-        // Pad salt to at least 8 bytes (argon2 minimum)
-        let mut salt_bytes = [0u8; 16];
-        let src = salt.as_bytes();
-        let len = src.len().min(16);
-        salt_bytes[..len].copy_from_slice(&src[..len]);
-        if len < 8 {
-            for i in len..8 {
-                salt_bytes[i] = 0x5a;
-            }
-        }
-
         let mut key = [0u8; 32];
         argon2
-            .hash_password_into(passphrase.as_bytes(), &salt_bytes[..16], &mut key)
+            .hash_password_into(passphrase.as_bytes(), salt_bytes, &mut key)
             .map_err(|e| VaultError::KeyDerivation(e.to_string()))?;
         Ok(key)
+    }
+
+    /// Generate a fresh random 16-byte salt.
+    fn generate_salt() -> [u8; 16] {
+        let mut salt = [0u8; 16];
+        rand::thread_rng().fill_bytes(&mut salt);
+        salt
     }
 }
 
@@ -157,7 +161,33 @@ impl SecretsVault for Vault {
     fn authenticate(&mut self, credential: AuthCredential) -> Result<AuthToken> {
         let key = match credential {
             AuthCredential::Passphrase(ref pass) => {
-                Vault::derive_key(pass, pass)?
+                // Load (or create) the vault file to get/store the KDF salt.
+                // The salt is random, unique per vault, and stored alongside
+                // the encrypted entries. This ensures two vaults with the same
+                // passphrase produce different keys.
+                let mut vf = self.load_file()?;
+
+                let salt_bytes: [u8; 16] = if vf.kdf_salt.is_empty() {
+                    // First time: generate a fresh random salt and persist it.
+                    let salt = Self::generate_salt();
+                    vf.kdf_salt = hex::encode(salt);
+                    self.save_file(&vf)?;
+                    salt
+                } else {
+                    // Existing vault: decode the stored salt.
+                    let decoded = hex::decode(&vf.kdf_salt)
+                        .map_err(|e| VaultError::KeyDerivation(format!("bad salt hex: {e}")))?;
+                    if decoded.len() != 16 {
+                        return Err(VaultError::KeyDerivation(
+                            "stored KDF salt has wrong length".into(),
+                        ));
+                    }
+                    let mut arr = [0u8; 16];
+                    arr.copy_from_slice(&decoded);
+                    arr
+                };
+
+                Self::derive_key(pass, &salt_bytes)?
             }
             AuthCredential::SystemKeychain => get_or_create_keychain_key()?,
         };
@@ -369,5 +399,47 @@ mod tests {
         let e2 = &vf.entries["K2"];
         assert_ne!(e1.nonce, e2.nonce);
         assert_ne!(e1.ciphertext, e2.ciphertext);
+    }
+
+    /// Two vaults with the same passphrase must produce different keys
+    /// because each vault gets its own random salt.
+    #[test]
+    fn test_same_passphrase_different_vaults_different_keys() {
+        let (mut vault_a, _) = temp_vault();
+        let (mut vault_b, _) = temp_vault();
+
+        let token_a = auth_passphrase(&mut vault_a, "shared-passphrase");
+        let token_b = auth_passphrase(&mut vault_b, "shared-passphrase");
+
+        // Keys must differ because salts are random
+        assert_ne!(token_a.key, token_b.key);
+    }
+
+    /// Re-authenticating with the same passphrase on the same vault must
+    /// produce the same key (salt is stored and reused).
+    #[test]
+    fn test_same_vault_same_passphrase_same_key() {
+        let (mut vault, path) = temp_vault();
+        let token1 = auth_passphrase(&mut vault, "my-pass");
+        vault.set("K", b"v", &token1).unwrap();
+
+        // Re-open the same vault file and authenticate again
+        let mut vault2 = Vault::new(&path);
+        let token2 = auth_passphrase(&mut vault2, "my-pass");
+
+        // Must be able to decrypt what was written with token1
+        let val = vault2.get("K", &token2).unwrap();
+        assert_eq!(val, b"v");
+    }
+
+    /// The KDF salt must be stored in the vault file after first authenticate().
+    #[test]
+    fn test_kdf_salt_persisted_in_vault_file() {
+        let (mut vault, _) = temp_vault();
+        auth_passphrase(&mut vault, "any-pass");
+
+        let vf = vault.load_file().unwrap();
+        assert!(!vf.kdf_salt.is_empty(), "kdf_salt should be written to vault file");
+        assert_eq!(vf.kdf_salt.len(), 32, "16 bytes = 32 hex chars");
     }
 }
