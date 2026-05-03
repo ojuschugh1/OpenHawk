@@ -24,5 +24,8 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 walkdir = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3"

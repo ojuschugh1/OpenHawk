@@ -35,8 +35,65 @@ impl SnapshotStrategy {
 }
 
 #[cfg(target_os = "macos")]
-fn detect_strategy(_working_dir: &Path) -> SnapshotStrategy {
-    SnapshotStrategy::ApfsReflink
+fn detect_strategy(working_dir: &Path) -> SnapshotStrategy {
+    // Verify the working directory is actually on APFS before claiming reflink
+    // support. A path on a USB drive (FAT32/exFAT), HFS+, or a network mount
+    // would fail at reflink time. We use statvfs to read the filesystem type.
+    if is_apfs(working_dir) {
+        SnapshotStrategy::ApfsReflink
+    } else {
+        SnapshotStrategy::FileCopyFallback
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn is_apfs(working_dir: &Path) -> bool {
+    use std::ffi::CString;
+
+    let canonical = match working_dir.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    let path_cstr = match CString::new(canonical.to_string_lossy().as_bytes()) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+
+    // statfs(2) gives us f_fstypename on macOS
+    #[repr(C)]
+    struct StatFs {
+        f_bsize: u32,
+        f_iosize: i32,
+        f_blocks: u64,
+        f_bfree: u64,
+        f_bavail: u64,
+        f_files: u64,
+        f_ffree: u64,
+        f_fsid: [i32; 2],
+        f_owner: u32,
+        f_type: u32,
+        f_flags: u64,
+        f_fssubtype: u32,
+        f_fstypename: [u8; 16],
+        f_mntonname: [u8; 1024],
+        f_mntfromname: [u8; 1024],
+        f_reserved: [u32; 8],
+    }
+
+    extern "C" {
+        fn statfs(path: *const libc::c_char, buf: *mut StatFs) -> libc::c_int;
+    }
+
+    let mut buf = std::mem::MaybeUninit::<StatFs>::uninit();
+    let ret = unsafe { statfs(path_cstr.as_ptr(), buf.as_mut_ptr()) };
+    if ret != 0 {
+        return false;
+    }
+    let buf = unsafe { buf.assume_init() };
+    let name_bytes = &buf.f_fstypename;
+    let end = name_bytes.iter().position(|&b| b == 0).unwrap_or(name_bytes.len());
+    let fs_name = std::str::from_utf8(&name_bytes[..end]).unwrap_or("");
+    fs_name == "apfs"
 }
 
 #[cfg(target_os = "linux")]
