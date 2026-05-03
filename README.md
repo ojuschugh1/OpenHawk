@@ -9,27 +9,109 @@
 
 <p align="center"><strong>local-first Agent OS — manage AI agents like real processes</strong></p>
 
+<p align="center">
+  <a href="https://crates.io/crates/openhawk"><img src="https://img.shields.io/crates/v/openhawk?logo=rust&logoColor=white&label=crates.io&color=e6522c" alt="crates.io"></a>
+  <a href="https://github.com/ojuschugh1/openhawk/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
+</p>
+
 OpenHawk is a local-first Agent Operating System built in Rust. It manages AI agents as first-class OS processes, providing filesystem safety through Copy-on-Write snapshots, inter-agent communication over a JSON-RPC bus, per-agent permission sandboxing, encrypted secrets management, and a TUI dashboard for real-time observability.
 
-It works with any agent framework: OpenClaw, CrewAI, LangGraph, custom scripts, or anything that runs as a process.
+It works with any agent framework: CrewAI, LangGraph, AutoGen, custom scripts, or anything that runs as a process.
+
+---
+
+INSTALL
+
+The fastest way — install directly from crates.io (no git clone needed):
+
+    cargo install openhawk
+
+This puts the `hawk` binary in `~/.cargo/bin/`. Make sure that's on your PATH:
+
+    export PATH="$HOME/.cargo/bin:$PATH"
+
+Verify it works:
+
+    hawk --help
+
+First run will check for companion tools and prompt you to install them:
+
+    hawk setup --yes
+
+That installs sqz, ghostdep, claimcheck, etch, and aura into `~/.local/bin/`.
+
+---
+
+INSTALL FROM SOURCE
+
+If you want to build from source or contribute:
+
+Prerequisites:
+- Rust 1.75+: https://rustup.rs
+- Git
+
+    git clone https://github.com/ojuschugh1/openhawk
+    cd openhawk
+    cargo build --release
+    cargo install --path hawk-cli
+
+---
+
+COMPANION TOOLS
+
+OpenHawk integrates with these tools for full functionality. Run `hawk setup --yes` to install them all automatically, or install individually:
+
+    sqz         token compression (60-92% savings on repeated reads)
+    ghostdep    phantom dependency detector
+    claimcheck  agent claim verifier
+    etch        API drift detector
+    aura        persistent cross-session memory
+
+Check what's installed:
+
+    hawk setup
+
+Install missing tools:
+
+    hawk setup --yes
+
+Install a specific tool:
+
+    hawk setup --only sqz --yes
+
+Force reinstall all:
+
+    hawk setup --force --yes
+
+---
+
+PLATFORMS
+
+- macOS 12+ (Apple Silicon and Intel)
+- Linux (kernel 5.10+, x86_64 and aarch64)
+- Windows 10+ (via WSL2 recommended)
 
 ---
 
 QUICK START
 
-Prerequisites:
-- Rust toolchain (1.75+): https://rustup.rs
-- macOS 12+, Linux (kernel 5.10+), or Windows 10+
+    # spawn an agent
+    hawk run "python my_agent.py"
 
-Build and install:
+    # list running agents
+    hawk ps
 
-    cd openhawk
-    cargo build --release
-    cargo install --path hawk-cli
+    # store a secret
+    hawk vault set OPENAI_API_KEY sk-proj-abc123
 
-Verify:
+    # orchestrate a multi-agent task
+    hawk orchestrate "research quantum computing and write a summary then review it"
 
-    hawk --help
+    # scaffold a new agent project
+    hawk sdk init python --name my-agent --output ~/projects
+
+    # see token savings from sqz
+    hawk stats tokens
 
 ---
 
@@ -497,7 +579,7 @@ Every agent declares its permissions and resource limits in a TOML manifest:
 
 RUNNING TESTS
 
-Run the full test suite (462 tests):
+Run the full test suite (490 tests):
 
     cd openhawk
     cargo test
@@ -525,9 +607,13 @@ Build in release mode:
 
     cargo build --release
 
-Install locally:
+Install locally from source:
 
     cargo install --path hawk-cli
+
+Install from crates.io:
+
+    cargo install openhawk
 
 The binary is placed at ~/.cargo/bin/hawk.
 
