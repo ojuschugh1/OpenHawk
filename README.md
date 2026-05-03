@@ -14,6 +14,10 @@
   <a href="https://github.com/ojuschugh1/openhawk/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
 
+<p align="center">
+  <img src="demos/openhawk_demo.gif" alt="OpenHawk demo" width="800">
+</p>
+
 OpenHawk is a local-first Agent Operating System built in Rust. It manages AI agents as first-class OS processes, providing filesystem safety through Copy-on-Write snapshots, inter-agent communication over a JSON-RPC bus, per-agent permission sandboxing, encrypted secrets management, and a TUI dashboard for real-time observability.
 
 It works with any agent framework: CrewAI, LangGraph, AutoGen, custom scripts, or anything that runs as a process.
@@ -172,6 +176,8 @@ AGENT LIFECYCLE
 
 Spawn an agent (any command):
 
+![Agent lifecycle demo](demos/agents.gif)
+
     hawk run "python research_agent.py"
     hawk run "node my-agent/dist/index.js"
     hawk run "sleep 300"
@@ -221,6 +227,8 @@ SECRETS VAULT
 
 Secrets are encrypted with AES-256-GCM and stored locally. Keys are derived from your system keychain or a passphrase via Argon2.
 
+![Vault demo](demos/vault.gif)
+
 Store a secret:
 
     hawk vault set OPENAI_API_KEY sk-proj-abc123
@@ -250,6 +258,8 @@ Delete a secret:
 MULTI-AGENT ORCHESTRATION
 
 Decompose a complex task across agents. Use "and" for parallel, "then" for sequential.
+
+![Orchestration demo](demos/orchestrate.gif)
 
     hawk orchestrate "research quantum computing and write a summary then review it"
 
