@@ -2,31 +2,30 @@
 # Publish all OpenHawk crates to crates.io in dependency order.
 # Run from the openhawk/ directory.
 # Safe to re-run — already-published crates are skipped automatically.
-set -e
 
-WAIT=60  # crates.io rate-limits new accounts to ~10 crates/day; space them out
-
-published() {
-  # returns 0 (true) if the crate version already exists on crates.io
-  local crate=$1
-  local ver=$2
-  curl -sf "https://crates.io/api/v1/crates/${crate}/${ver}" \
-    -H "User-Agent: openhawk-publish-script" \
-    -o /dev/null 2>/dev/null
-}
+WAIT=60  # crates.io rate-limits new accounts; space them out
 
 publish() {
   local crate=$1
-  local ver="0.1.0"
   echo ""
   echo "publishing ${crate}..."
 
-  if published "$crate" "$ver"; then
-    echo "${crate} v${ver} already on crates.io, skipping."
-    return
+  output=$(cargo publish -p "$crate" 2>&1)
+  code=$?
+
+  if echo "$output" | grep -q "already exists"; then
+    echo "${crate} already on crates.io, skipping."
+    return 0
   fi
 
-  cargo publish -p "$crate"
+  if [ $code -ne 0 ]; then
+    echo "$output"
+    echo ""
+    echo "ERROR: ${crate} failed to publish (exit $code)"
+    exit $code
+  fi
+
+  echo "$output"
   echo "${crate} published. waiting ${WAIT}s for crates.io to index..."
   sleep $WAIT
 }
