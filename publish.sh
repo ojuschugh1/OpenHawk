@@ -19,9 +19,14 @@ publish() {
   fi
 
   if echo "$output" | grep -q "429 Too Many Requests"; then
-    retry_after=$(echo "$output" | grep -o 'after [^a]*GMT' | head -1)
+    retry_after=$(echo "$output" | grep -o 'after [A-Za-z0-9, :]*GMT' | head -1)
     echo ""
-    echo "Rate limited by crates.io. Try again $retry_after"
+    echo "Rate limited by crates.io."
+    if [ -n "$retry_after" ]; then
+      echo "Try again $retry_after"
+    else
+      echo "Try again in ~24 hours from your first publish today."
+    fi
     echo "Then just re-run: ./publish.sh"
     exit 1
   fi
