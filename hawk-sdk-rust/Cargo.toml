@@ -1,0 +1,12 @@
+[package]
+name = "hawk-sdk-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hawk-bus = { path = "../hawk-bus" }
+hawk-memory = { path = "../hawk-memory" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
