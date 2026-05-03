@@ -81,7 +81,7 @@ That installs sqz, ghostdep, claimcheck, etch, and aura into `~/.local/bin/`.
 git clone https://github.com/ojuschugh1/openhawk
 cd openhawk
 cargo build --release
-cargo install --path hawk-cli
+cargo install --path openhawk-cli
 ```
 
 Prerequisites: Rust 1.75+ from https://rustup.rs
@@ -180,7 +180,7 @@ Decompose a task across agents. Use `and` for parallel subtasks, `then` for sequ
 openhawk orchestrate "research quantum computing and write a summary then review it"
 ```
 
-Dispatches real `task.run` messages over hawk-bus to each assigned agent and waits for `task.done` / `task.failed` replies (30s timeout). Falls back to local execution for agents without a bus client.
+Dispatches real `task.run` messages over openhawk-bus to each assigned agent and waits for `task.done` / `task.failed` replies (30s timeout). Falls back to local execution for agents without a bus client.
 
 ---
 
@@ -243,7 +243,7 @@ openhawk sdk init python     --name my-agent --output ~/projects
 openhawk sdk init typescript --name my-agent --output ~/projects
 ```
 
-Each scaffold includes `Agent_Manifest.toml`, an entry point with hawk-bus client, and the appropriate build config.
+Each scaffold includes `Agent_Manifest.toml`, an entry point with openhawk-bus client, and the appropriate build config.
 
 ---
 
@@ -365,12 +365,12 @@ graph TD
     USER(["👤 User / Agent Framework\nCrewAI · LangGraph · AutoGen · scripts"])
 
     subgraph OPENHAWK["⚙️  OpenHawk Kernel"]
-        CLI["openhawk CLI\nhawk-cli"]
-        CORE["hawk-core\nlifecycle · orchestration\nhealing · patterns · config"]
-        BUS["hawk-bus\nJSON-RPC 2.0 message bus"]
-        VAULT["hawk-vault\nAES-256-GCM secrets"]
-        SNAP["hawk-savepoint\nCoW filesystem snapshots"]
-        UI["hawk-ui\nratatui TUI dashboard"]
+        CLI["openhawk CLI\nopenhawk-cli"]
+        CORE["openhawk-core\nlifecycle · orchestration\nhealing · patterns · config"]
+        BUS["openhawk-bus\nJSON-RPC 2.0 message bus"]
+        VAULT["openhawk-vault\nAES-256-GCM secrets"]
+        SNAP["openhawk-savepoint\nCoW filesystem snapshots"]
+        UI["openhawk-ui\nratatui TUI dashboard"]
     end
 
     SQZ["🗜️  sqz\nLLM token compression\n60–92% savings on repeated reads\ngithub.com/ojuschugh1/sqz"]
@@ -385,11 +385,11 @@ graph TD
     CORE --> VAULT
     CORE --> SNAP
 
-    CORE -->|"hawk-compress\ntoken savings"| SQZ
-    CORE -->|"hawk-watch\ndependency scan"| GHOSTDEP
-    CORE -->|"hawk-watch\nAPI drift"| ETCH
-    CORE -->|"hawk-verify\nclaim audit"| CLAIMCHECK
-    CORE -->|"hawk-memory\ncontext store"| AURA
+    CORE -->|"openhawk-compress\ntoken savings"| SQZ
+    CORE -->|"openhawk-watch\ndependency scan"| GHOSTDEP
+    CORE -->|"openhawk-watch\nAPI drift"| ETCH
+    CORE -->|"openhawk-verify\nclaim audit"| CLAIMCHECK
+    CORE -->|"openhawk-memory\ncontext store"| AURA
 
     CLI --> UI
 
@@ -406,29 +406,29 @@ graph TD
 
 | Tool | Role in OpenHawk | Repo |
 |---|---|---|
-| **sqz** | `hawk-compress` calls `sqz compress` to shrink LLM context before it reaches the model. `hawk stats tokens` shows real sqz SQLite stats. | [ojuschugh1/sqz](https://github.com/ojuschugh1/sqz) |
-| **ghostdep** | `hawk-watch` calls `ghostdep -p <path> -f json` to find phantom and unused dependencies. Results stored in SQLite, surfaced in `openhawk watch report`. | [ojuschugh1/ghostdep](https://github.com/ojuschugh1/ghostdep) |
-| **etch** | `hawk-watch` calls `etch test --ci --format json` to detect API drift between recorded and live responses. | [ojuschugh1/etch](https://github.com/ojuschugh1/etch) |
-| **claimcheck** | `hawk-verify` calls `claimcheck <transcript.jsonl>` to audit whether an agent actually wrote the files, made the git commits, and updated the lockfiles it claimed to. | [ojuschugh1/claimcheck](https://github.com/ojuschugh1/claimcheck) |
-| **aura** | `hawk-memory` delegates to `aura memory add/get/ls/rm` for persistent cross-session context. Falls back to in-memory store when aura isn't running. | [ojuschugh1/aura](https://github.com/ojuschugh1/aura) |
+| **sqz** | `openhawk-compress` calls `sqz compress` to shrink LLM context before it reaches the model. `openhawk stats tokens` shows real sqz SQLite stats. | [ojuschugh1/sqz](https://github.com/ojuschugh1/sqz) |
+| **ghostdep** | `openhawk-watch` calls `ghostdep -p <path> -f json` to find phantom and unused dependencies. Results stored in SQLite, surfaced in `openhawk watch report`. | [ojuschugh1/ghostdep](https://github.com/ojuschugh1/ghostdep) |
+| **etch** | `openhawk-watch` calls `etch test --ci --format json` to detect API drift between recorded and live responses. | [ojuschugh1/etch](https://github.com/ojuschugh1/etch) |
+| **claimcheck** | `openhawk-verify` calls `claimcheck <transcript.jsonl>` to audit whether an agent actually wrote the files, made the git commits, and updated the lockfiles it claimed to. | [ojuschugh1/claimcheck](https://github.com/ojuschugh1/claimcheck) |
+| **aura** | `openhawk-memory` delegates to `aura memory add/get/ls/rm` for persistent cross-session context. Falls back to in-memory store when aura isn't running. | [ojuschugh1/aura](https://github.com/ojuschugh1/aura) |
 
 All five tools are installed automatically by `openhawk setup --yes` and fall back gracefully when not present.
 
 ```
 openhawk/
-├── hawk-cli/        openhawk binary (clap CLI)
-├── hawk-core/       kernel: lifecycle, orchestration, config, healing, patterns
-├── hawk-savepoint/  CoW filesystem snapshots
-├── hawk-vault/      AES-256-GCM encrypted secrets
-├── hawk-bus/        JSON-RPC 2.0 message bus
-├── hawk-memory/     shared memory (Aura bridge)
-├── hawk-verify/     claim verification (ClaimCheck bridge)
-├── hawk-compress/   token compression (sqz bridge)
-├── hawk-watch/      API drift + dependency scanning (etch/ghostdep)
-├── hawk-ui/         ratatui TUI dashboard
-├── hawk-nest/       marketplace client
-├── hawk-sync/       cross-device sync
-└── hawk-sdk-rust/   SDK + Python/TypeScript scaffolding
+├── openhawk-cli/        openhawk binary (clap CLI)
+├── openhawk-core/       kernel: lifecycle, orchestration, config, healing, patterns
+├── openhawk-savepoint/  CoW filesystem snapshots
+├── openhawk-vault/      AES-256-GCM encrypted secrets
+├── openhawk-bus/        JSON-RPC 2.0 message bus
+├── openhawk-memory/     shared memory (Aura bridge)
+├── openhawk-verify/     claim verification (ClaimCheck bridge)
+├── openhawk-compress/   token compression (sqz bridge)
+├── openhawk-watch/      API drift + dependency scanning (etch/ghostdep)
+├── openhawk-ui/         ratatui TUI dashboard
+├── openhawk-nest/       marketplace client
+├── openhawk-sync/       cross-device sync
+└── openhawk-sdk-rust/   SDK + Python/TypeScript scaffolding
 ```
 
 ---
@@ -467,9 +467,9 @@ tags = ["research", "summarization", "web-search"]
 
 ```bash
 cargo test                          # all 492 tests
-cargo test -p hawk-core             # specific crate
-cargo test -p hawk-vault
-cargo test -p hawk-bus
+cargo test -p openhawk-core             # specific crate
+cargo test -p openhawk-vault
+cargo test -p openhawk-bus
 ```
 
 ---
@@ -479,7 +479,7 @@ cargo test -p hawk-bus
 ```bash
 cargo build                         # debug
 cargo build --release               # release
-cargo install --path hawk-cli       # install from source
+cargo install --path openhawk-cli       # install from source
 cargo install openhawk              # install from crates.io
 ```
 

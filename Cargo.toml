@@ -1,18 +1,18 @@
 [workspace]
 members = [
-    "hawk-bus",
-    "hawk-cli",
-    "hawk-compress",
-    "hawk-core",
-    "hawk-memory",
-    "hawk-nest",
-    "hawk-savepoint",
-    "hawk-sdk-rust",
-    "hawk-sync",
-    "hawk-ui",
-    "hawk-vault",
-    "hawk-verify",
-    "hawk-watch",
+    "openhawk-bus",
+    "openhawk-cli",
+    "openhawk-compress",
+    "openhawk-core",
+    "openhawk-memory",
+    "openhawk-nest",
+    "openhawk-savepoint",
+    "openhawk-sdk-rust",
+    "openhawk-sync",
+    "openhawk-ui",
+    "openhawk-vault",
+    "openhawk-verify",
+    "openhawk-watch",
 ]
 resolver = "2"
 

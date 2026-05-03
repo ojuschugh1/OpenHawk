@@ -17,6 +17,6 @@ tokio = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
-hawk-core = { path = "../hawk-core", version = "0.1.0", package = "openhawk-core" }
-hawk-savepoint = { path = "../hawk-savepoint", version = "0.1.0", package = "openhawk-savepoint" }
+hawk-core = { path = "../openhawk-core", version = "0.1.0", package = "openhawk-core" }
+hawk-savepoint = { path = "../openhawk-savepoint", version = "0.1.0", package = "openhawk-savepoint" }
 dirs-next = { workspace = true }

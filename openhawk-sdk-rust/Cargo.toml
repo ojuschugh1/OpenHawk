@@ -11,8 +11,8 @@ keywords = ["agent", "sdk", "scaffold", "ai", "codegen"]
 categories = ["development-tools", "command-line-utilities"]
 
 [dependencies]
-hawk-bus    = { path = "../hawk-bus",    version = "0.1.0", package = "openhawk-bus" }
-hawk-memory = { path = "../hawk-memory", version = "0.1.0", package = "openhawk-memory" }
+hawk-bus    = { path = "../openhawk-bus",    version = "0.1.0", package = "openhawk-bus" }
+hawk-memory = { path = "../openhawk-memory", version = "0.1.0", package = "openhawk-memory" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
