@@ -6,19 +6,28 @@ set -e
 
 WAIT=60  # crates.io rate-limits new accounts to ~10 crates/day; space them out
 
+published() {
+  # returns 0 (true) if the crate version already exists on crates.io
+  local crate=$1
+  local ver=$2
+  curl -sf "https://crates.io/api/v1/crates/${crate}/${ver}" \
+    -H "User-Agent: openhawk-publish-script" \
+    -o /dev/null 2>/dev/null
+}
+
 publish() {
   local crate=$1
+  local ver="0.1.0"
   echo ""
-  echo "publishing $crate..."
+  echo "publishing ${crate}..."
 
-  # skip if already on crates.io
-  if cargo search "$crate" 2>/dev/null | grep -q "^$crate "; then
-    echo "$crate already published, skipping."
+  if published "$crate" "$ver"; then
+    echo "${crate} v${ver} already on crates.io, skipping."
     return
   fi
 
   cargo publish -p "$crate"
-  echo "$crate published. waiting ${WAIT}s for crates.io to index..."
+  echo "${crate} published. waiting ${WAIT}s for crates.io to index..."
   sleep $WAIT
 }
 
