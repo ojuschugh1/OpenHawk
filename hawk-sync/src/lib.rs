@@ -114,7 +114,10 @@ impl SyncEngine {
         if self.key.is_none() {
             return Err(SyncError::NotEnabled);
         }
-        Ok(SyncResult { synced_items: self.selected.len(), conflicts_resolved: 0 })
+        Ok(SyncResult {
+            synced_items: self.selected.len(),
+            conflicts_resolved: 0,
+        })
     }
 
     pub fn set_conflict_strategy(&mut self, strategy: ConflictStrategy) {
@@ -182,7 +185,9 @@ impl SyncEngine {
         let mut nonce_bytes = [0u8; 12];
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher.encrypt(nonce, data).map_err(|_| SyncError::Encryption)?;
+        let ciphertext = cipher
+            .encrypt(nonce, data)
+            .map_err(|_| SyncError::Encryption)?;
         let mut out = Vec::with_capacity(12 + ciphertext.len());
         out.extend_from_slice(&nonce_bytes);
         out.extend_from_slice(&ciphertext);
@@ -196,7 +201,9 @@ impl SyncEngine {
         let key_bytes = self.key.ok_or(SyncError::NotEnabled)?;
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
         let nonce = Nonce::from_slice(&data[..12]);
-        cipher.decrypt(nonce, &data[12..]).map_err(|_| SyncError::Decryption)
+        cipher
+            .decrypt(nonce, &data[12..])
+            .map_err(|_| SyncError::Decryption)
     }
 }
 
@@ -245,7 +252,10 @@ mod tests {
     #[test]
     fn decrypt_fails_on_short_input() {
         let engine = enabled_engine();
-        assert!(matches!(engine.decrypt(b"short"), Err(SyncError::CiphertextTooShort)));
+        assert!(matches!(
+            engine.decrypt(b"short"),
+            Err(SyncError::CiphertextTooShort)
+        ));
     }
 
     #[test]
@@ -361,7 +371,10 @@ mod tests {
     #[test]
     fn conflict_strategy_default_is_lww() {
         let engine = SyncEngine::new();
-        assert_eq!(*engine.get_conflict_strategy(), ConflictStrategy::LastWriterWins);
+        assert_eq!(
+            *engine.get_conflict_strategy(),
+            ConflictStrategy::LastWriterWins
+        );
     }
 
     #[test]

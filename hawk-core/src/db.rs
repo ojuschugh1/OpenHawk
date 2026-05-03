@@ -1,12 +1,11 @@
 use std::path::Path;
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 
 use crate::error::HawkError;
 
 pub fn init_database(path: &Path) -> Result<Connection, HawkError> {
-    let conn = Connection::open(path)
-        .map_err(|e| HawkError::Database(e.to_string()))?;
+    let conn = Connection::open(path).map_err(|e| HawkError::Database(e.to_string()))?;
 
     conn.execute_batch("PRAGMA journal_mode=WAL;")
         .map_err(|e| HawkError::Database(e.to_string()))?;

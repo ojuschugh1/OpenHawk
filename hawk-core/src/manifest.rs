@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::error::HawkError;
+use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, HawkError>;
 
@@ -52,7 +52,11 @@ pub struct Resources {
 
 impl Default for Resources {
     fn default() -> Self {
-        Self { cpu_percent: 25, memory_mb: 512, max_open_fds: 64 }
+        Self {
+            cpu_percent: 25,
+            memory_mb: 512,
+            max_open_fds: 64,
+        }
     }
 }
 
@@ -94,10 +98,14 @@ const VALID_PRIVACY: &[&str] = &["cloud", "local-only"];
 
 fn validate(m: &AgentManifest) -> Result<()> {
     if m.info.name.trim().is_empty() {
-        return Err(HawkError::InvalidManifest("[agent] name must not be empty".to_string()));
+        return Err(HawkError::InvalidManifest(
+            "[agent] name must not be empty".to_string(),
+        ));
     }
     if m.info.version.trim().is_empty() {
-        return Err(HawkError::InvalidManifest("[agent] version must not be empty".to_string()));
+        return Err(HawkError::InvalidManifest(
+            "[agent] version must not be empty".to_string(),
+        ));
     }
     let cpu = m.resources.cpu_percent;
     if !(1..=100).contains(&cpu) {
@@ -189,8 +197,14 @@ tags = ["research", "summarization", "web-search"]
         assert_eq!(m.llm.provider, "openai");
         assert_eq!(m.llm.privacy, "cloud");
         assert_eq!(m.llm.budget_tokens, 1_000_000);
-        assert_eq!(m.talon_requirements.required, vec!["browser-talon", "github-talon"]);
-        assert_eq!(m.capabilities.tags, vec!["research", "summarization", "web-search"]);
+        assert_eq!(
+            m.talon_requirements.required,
+            vec!["browser-talon", "github-talon"]
+        );
+        assert_eq!(
+            m.capabilities.tags,
+            vec!["research", "summarization", "web-search"]
+        );
     }
 
     #[test]

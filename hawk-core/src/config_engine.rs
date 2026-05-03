@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::config::{self, HawkConfig};
 use crate::error::HawkError;
@@ -37,7 +37,12 @@ impl LayeredConfig {
             (None, None)
         };
 
-        Ok(Self { global, project, global_path, project_path })
+        Ok(Self {
+            global,
+            project,
+            global_path,
+            project_path,
+        })
     }
 
     /// Returns the effective value for a dot-notation key, with source annotation.
@@ -45,12 +50,18 @@ impl LayeredConfig {
     pub fn get_effective(&self, key: &str) -> Option<ConfigValue> {
         if let Some(proj) = &self.project {
             if let Some(v) = extract(proj, key) {
-                return Some(ConfigValue { value: v, source: ConfigScope::Project });
+                return Some(ConfigValue {
+                    value: v,
+                    source: ConfigScope::Project,
+                });
             }
         }
         if let Some(glob) = &self.global {
             if let Some(v) = extract(glob, key) {
-                return Some(ConfigValue { value: v, source: ConfigScope::Global });
+                return Some(ConfigValue {
+                    value: v,
+                    source: ConfigScope::Global,
+                });
             }
         }
         None
@@ -145,9 +156,7 @@ fn extract(cfg: &HawkConfig, key: &str) -> Option<String> {
             let s = serde_json::to_string(&cfg.llm.providers).ok()?;
             Some(s)
         }
-        "llm.pricing.openai_gpt4_prompt" => {
-            Some(cfg.llm.pricing.openai_gpt4_prompt.to_string())
-        }
+        "llm.pricing.openai_gpt4_prompt" => Some(cfg.llm.pricing.openai_gpt4_prompt.to_string()),
         "llm.pricing.openai_gpt4_completion" => {
             Some(cfg.llm.pricing.openai_gpt4_completion.to_string())
         }
@@ -155,9 +164,7 @@ fn extract(cfg: &HawkConfig, key: &str) -> Option<String> {
         "savepoint.max_snapshots_per_agent" => {
             Some(cfg.savepoint.max_snapshots_per_agent.to_string())
         }
-        "bus.message_retention_seconds" => {
-            Some(cfg.bus.message_retention_seconds.to_string())
-        }
+        "bus.message_retention_seconds" => Some(cfg.bus.message_retention_seconds.to_string()),
         "bus.max_queue_size" => Some(cfg.bus.max_queue_size.to_string()),
         "sync.enabled" => Some(cfg.sync.enabled.to_string()),
         "sync.conflict_strategy" => Some(cfg.sync.conflict_strategy.clone()),
@@ -311,7 +318,8 @@ enabled = true
             project_path: Some(project_dir.join("hawk.toml")),
         };
 
-        lc.set("core.log_level", "trace", ConfigScope::Project).unwrap();
+        lc.set("core.log_level", "trace", ConfigScope::Project)
+            .unwrap();
 
         let written = fs::read_to_string(project_dir.join("hawk.toml")).unwrap();
         assert!(written.contains("trace"));
@@ -330,7 +338,8 @@ enabled = true
             project_path: None,
         };
 
-        lc.set("privacy.mode", "air-gapped", ConfigScope::Global).unwrap();
+        lc.set("privacy.mode", "air-gapped", ConfigScope::Global)
+            .unwrap();
 
         let written = fs::read_to_string(&global_path).unwrap();
         assert!(written.contains("air-gapped"));
@@ -346,7 +355,11 @@ enabled = true
             project_path: None,
         };
         let err = lc
-            .set("core.log_level", "info", ConfigScope::Agent("my-agent".to_string()))
+            .set(
+                "core.log_level",
+                "info",
+                ConfigScope::Agent("my-agent".to_string()),
+            )
             .unwrap_err();
         assert!(err.to_string().contains("manifest"));
     }
@@ -379,7 +392,10 @@ enabled = true
             project_path: None,
         };
         let errors = lc2.validate().unwrap();
-        assert!(!errors.is_empty(), "expected validation errors for bad config");
+        assert!(
+            !errors.is_empty(),
+            "expected validation errors for bad config"
+        );
     }
 
     #[test]
@@ -409,7 +425,8 @@ enabled = true
             project_path: None,
         };
 
-        lc.set("core.log_level", "error", ConfigScope::Global).unwrap();
+        lc.set("core.log_level", "error", ConfigScope::Global)
+            .unwrap();
         assert!(global_path.exists());
         let content = fs::read_to_string(&global_path).unwrap();
         assert!(content.contains("error"));

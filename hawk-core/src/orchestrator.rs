@@ -81,17 +81,27 @@ pub struct Orchestrator {
 
 impl Orchestrator {
     pub fn new() -> Self {
-        Self { agents: Vec::new(), bus: None }
+        Self {
+            agents: Vec::new(),
+            bus: None,
+        }
     }
 
     /// Attach a live message bus so execute_plan dispatches real task.run
     /// messages to agents and waits for task.done / task.failed replies.
     pub fn with_bus(bus: hawk_bus::MessageBus) -> Self {
-        Self { agents: Vec::new(), bus: Some(bus) }
+        Self {
+            agents: Vec::new(),
+            bus: Some(bus),
+        }
     }
 
     pub fn register_agent(&mut self, pid: u32, name: impl Into<String>, capabilities: Vec<String>) {
-        self.agents.push(AgentCapabilityRecord { pid, name: name.into(), capabilities });
+        self.agents.push(AgentCapabilityRecord {
+            pid,
+            name: name.into(),
+            capabilities,
+        });
     }
 
     // ── Planning ──────────────────────────────────────────────────────────────
@@ -110,7 +120,9 @@ impl Orchestrator {
 
             for and_part in &and_parts {
                 let trimmed = and_part.trim().to_string();
-                if trimmed.is_empty() { continue; }
+                if trimmed.is_empty() {
+                    continue;
+                }
                 let caps = infer_capabilities(&trimmed);
                 let assigned = best_agent(&self.agents, &caps).map(|r| r.pid);
                 subtasks.push(SubTask {
@@ -124,10 +136,7 @@ impl Orchestrator {
             // All subtasks in this group depend on all subtasks in the previous group
             if ti > 0 {
                 let prev_group_end = group_start;
-                let prev_group_start = dependencies
-                    .last()
-                    .map(|&(_, dep)| dep)
-                    .unwrap_or(0);
+                let prev_group_start = dependencies.last().map(|&(_, dep)| dep).unwrap_or(0);
                 let prev_start = if ti == 1 { 0 } else { prev_group_start };
                 let prev_end = group_start;
                 for dep_idx in prev_start..prev_end {
@@ -196,7 +205,9 @@ impl Orchestrator {
                     // Retry once with a different agent if available
                     let caps = plan.subtasks[idx].required_capabilities.clone();
                     let current_pid = plan.subtasks[idx].assigned_agent;
-                    let next = self.agents.iter()
+                    let next = self
+                        .agents
+                        .iter()
                         .filter(|a| Some(a.pid) != current_pid)
                         .max_by_key(|a| capability_overlap(&a.capabilities, &caps));
 
@@ -208,8 +219,7 @@ impl Orchestrator {
                         }
                     }
 
-                    plan.subtasks[idx].status =
-                        SubTaskStatus::Failed(e.to_string());
+                    plan.subtasks[idx].status = SubTaskStatus::Failed(e.to_string());
                     failed_count += 1;
                 }
             }
@@ -224,17 +234,18 @@ impl Orchestrator {
             format!("{completed}/{total} sub-tasks completed; {failed_count} failed.")
         };
 
-        Ok(OrchestrationReport { plan, success, summary })
+        Ok(OrchestrationReport {
+            plan,
+            success,
+            summary,
+        })
     }
 
     /// Dispatch a single subtask:
     /// - If a bus is attached and the agent has a direct channel, send a
     ///   task.run message and wait up to TASK_TIMEOUT_SECS for a reply.
     /// - Otherwise fall back to local simulation (succeeds if agent is assigned).
-    async fn dispatch_subtask(
-        &self,
-        subtask: &SubTask,
-    ) -> std::result::Result<(), String> {
+    async fn dispatch_subtask(&self, subtask: &SubTask) -> std::result::Result<(), String> {
         let Some(pid) = subtask.assigned_agent else {
             return Err("no agent assigned".to_string());
         };
@@ -274,7 +285,8 @@ impl Orchestrator {
                             if reply.method == "task.done" {
                                 return Ok(());
                             } else {
-                                let reason = reply.params
+                                let reason = reply
+                                    .params
                                     .get("error")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("task failed")
@@ -346,7 +358,9 @@ fn best_agent<'a>(
     agents: &'a [AgentCapabilityRecord],
     required: &[String],
 ) -> Option<&'a AgentCapabilityRecord> {
-    agents.iter().max_by_key(|a| capability_overlap(&a.capabilities, required))
+    agents
+        .iter()
+        .max_by_key(|a| capability_overlap(&a.capabilities, required))
 }
 
 /// Topological sort using Kahn's algorithm with a VecDeque for O(1) pop_front.
@@ -357,7 +371,9 @@ pub fn topological_sort(n: usize, deps: &[(usize, usize)]) -> Option<Vec<usize>>
     let mut adj: HashMap<usize, Vec<usize>> = HashMap::new();
 
     for &(dep, dependent) in deps {
-        if dep >= n || dependent >= n { return None; }
+        if dep >= n || dependent >= n {
+            return None;
+        }
         in_degree[dependent] += 1;
         adj.entry(dep).or_default().push(dependent);
     }
@@ -377,7 +393,11 @@ pub fn topological_sort(n: usize, deps: &[(usize, usize)]) -> Option<Vec<usize>>
         }
     }
 
-    if order.len() == n { Some(order) } else { None }
+    if order.len() == n {
+        Some(order)
+    } else {
+        None
+    }
 }
 
 /// Generate a short unique ID without pulling in uuid as a direct dep here.
@@ -398,7 +418,11 @@ mod tests {
 
     fn make_orchestrator() -> Orchestrator {
         let mut o = Orchestrator::new();
-        o.register_agent(1, "research-agent", vec!["research".into(), "web-search".into()]);
+        o.register_agent(
+            1,
+            "research-agent",
+            vec!["research".into(), "web-search".into()],
+        );
         o.register_agent(2, "coding-agent", vec!["coding".into(), "testing".into()]);
         o.register_agent(3, "review-agent", vec!["review".into(), "analysis".into()]);
         o
@@ -432,7 +456,9 @@ mod tests {
     #[test]
     fn subtasks_have_non_empty_descriptions() {
         let o = make_orchestrator();
-        let plan = o.orchestrate("research topic then write code then review changes").unwrap();
+        let plan = o
+            .orchestrate("research topic then write code then review changes")
+            .unwrap();
         for st in &plan.subtasks {
             assert!(!st.description.is_empty());
         }
@@ -470,7 +496,9 @@ mod tests {
     #[test]
     fn all_subtasks_get_agent_assigned_when_agents_available() {
         let o = make_orchestrator();
-        let plan = o.orchestrate("research topic and write code and review changes").unwrap();
+        let plan = o
+            .orchestrate("research topic and write code and review changes")
+            .unwrap();
         for st in &plan.subtasks {
             assert!(st.assigned_agent.is_some());
         }
@@ -510,7 +538,10 @@ mod tests {
         let plan = o.orchestrate("research topic").unwrap();
         let report = o.execute_plan(plan).unwrap();
         assert!(!report.success);
-        assert!(matches!(report.plan.subtasks[0].status, SubTaskStatus::Failed(_)));
+        assert!(matches!(
+            report.plan.subtasks[0].status,
+            SubTaskStatus::Failed(_)
+        ));
     }
 
     #[test]
@@ -601,10 +632,7 @@ mod tests {
         tokio::spawn(async move {
             while let Some(msg) = agent_rx.recv().await {
                 if msg.method == "task.run" {
-                    let reply_topic = msg.params["reply_topic"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string();
+                    let reply_topic = msg.params["reply_topic"].as_str().unwrap_or("").to_string();
                     let done = hawk_bus::BusMessage {
                         jsonrpc: "2.0".into(),
                         method: "task.done".into(),

@@ -87,7 +87,10 @@ pub struct Vault {
 
 impl Vault {
     pub fn new(vault_path: impl Into<PathBuf>) -> Self {
-        Self { vault_path: vault_path.into(), auth_key: None }
+        Self {
+            vault_path: vault_path.into(),
+            auth_key: None,
+        }
     }
 
     pub fn default_path() -> PathBuf {
@@ -115,8 +118,8 @@ impl Vault {
     }
 
     fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .map_err(|e| VaultError::Encryption(e.to_string()))?;
+        let cipher =
+            Aes256Gcm::new_from_slice(key).map_err(|e| VaultError::Encryption(e.to_string()))?;
         let mut nonce_bytes = [0u8; 12];
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
@@ -127,8 +130,8 @@ impl Vault {
     }
 
     fn decrypt(key: &[u8; 32], nonce_bytes: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .map_err(|e| VaultError::Decryption(e.to_string()))?;
+        let cipher =
+            Aes256Gcm::new_from_slice(key).map_err(|e| VaultError::Decryption(e.to_string()))?;
         let nonce = Nonce::from_slice(nonce_bytes);
         cipher
             .decrypt(nonce, ciphertext)
@@ -212,10 +215,9 @@ impl SecretsVault for Vault {
             .entries
             .get(key)
             .ok_or_else(|| VaultError::NotFound(key.to_string()))?;
-        let nonce = hex::decode(&entry.nonce)
-            .map_err(|e| VaultError::Decryption(e.to_string()))?;
-        let ciphertext = hex::decode(&entry.ciphertext)
-            .map_err(|e| VaultError::Decryption(e.to_string()))?;
+        let nonce = hex::decode(&entry.nonce).map_err(|e| VaultError::Decryption(e.to_string()))?;
+        let ciphertext =
+            hex::decode(&entry.ciphertext).map_err(|e| VaultError::Decryption(e.to_string()))?;
         Self::decrypt(&auth.key, &nonce, &ciphertext)
     }
 
@@ -240,15 +242,16 @@ fn get_or_create_keychain_key() -> Result<[u8; 32]> {
     const SERVICE: &str = "hawk-vault";
     const ACCOUNT: &str = "hawk-vault-master";
 
-    let entry = keyring::Entry::new(SERVICE, ACCOUNT)
-        .map_err(|e| VaultError::Keychain(e.to_string()))?;
+    let entry =
+        keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| VaultError::Keychain(e.to_string()))?;
 
     match entry.get_password() {
         Ok(hex_key) => {
-            let bytes = hex::decode(&hex_key)
-                .map_err(|e| VaultError::Keychain(e.to_string()))?;
+            let bytes = hex::decode(&hex_key).map_err(|e| VaultError::Keychain(e.to_string()))?;
             if bytes.len() != 32 {
-                return Err(VaultError::Keychain("invalid key length in keychain".into()));
+                return Err(VaultError::Keychain(
+                    "invalid key length in keychain".into(),
+                ));
             }
             let mut key = [0u8; 32];
             key.copy_from_slice(&bytes);
@@ -258,7 +261,7 @@ fn get_or_create_keychain_key() -> Result<[u8; 32]> {
             let mut key = [0u8; 32];
             rand::thread_rng().fill_bytes(&mut key);
             entry
-                .set_password(&hex::encode(&key))
+                .set_password(&hex::encode(key))
                 .map_err(|e| VaultError::Keychain(e.to_string()))?;
             Ok(key)
         }
@@ -351,7 +354,10 @@ mod tests {
 
         vault.delete("TO_DELETE", &token).unwrap();
         assert!(!vault.list_keys().contains(&"TO_DELETE".to_string()));
-        assert!(matches!(vault.get("TO_DELETE", &token), Err(VaultError::NotFound(_))));
+        assert!(matches!(
+            vault.get("TO_DELETE", &token),
+            Err(VaultError::NotFound(_))
+        ));
     }
 
     #[test]
@@ -369,7 +375,10 @@ mod tests {
     fn test_delete_nonexistent_key() {
         let (mut vault, _path) = temp_vault();
         let token = auth_passphrase(&mut vault, "pass");
-        assert!(matches!(vault.delete("DOES_NOT_EXIST", &token), Err(VaultError::NotFound(_))));
+        assert!(matches!(
+            vault.delete("DOES_NOT_EXIST", &token),
+            Err(VaultError::NotFound(_))
+        ));
     }
 
     #[test]
@@ -439,7 +448,10 @@ mod tests {
         auth_passphrase(&mut vault, "any-pass");
 
         let vf = vault.load_file().unwrap();
-        assert!(!vf.kdf_salt.is_empty(), "kdf_salt should be written to vault file");
+        assert!(
+            !vf.kdf_salt.is_empty(),
+            "kdf_salt should be written to vault file"
+        );
         assert_eq!(vf.kdf_salt.len(), 32, "16 bytes = 32 hex chars");
     }
 }

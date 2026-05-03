@@ -51,7 +51,12 @@ pub struct CompressionStats {
 }
 
 pub trait CompressionEngine {
-    fn compress(&self, context: &str, threshold: usize, agent_pid: u32) -> Result<CompressedContext, CompressError>;
+    fn compress(
+        &self,
+        context: &str,
+        threshold: usize,
+        agent_pid: u32,
+    ) -> Result<CompressedContext, CompressError>;
     fn get_stats(&self) -> CompressionStats;
     fn invalidate_cache(&self);
 }
@@ -71,7 +76,9 @@ fn sqz_compress(input: &str, no_cache: bool) -> Option<String> {
     if no_cache {
         cmd.arg("--no-cache");
     }
-    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
 
     let mut child = cmd.spawn().ok()?;
     child.stdin.as_mut()?.write_all(input.as_bytes()).ok()?;
@@ -153,7 +160,8 @@ impl SqzEngine {
     fn fallback_compress(context: &str, threshold: usize) -> String {
         // sentence-level dedup
         let mut seen = std::collections::HashSet::new();
-        let deduped: Vec<&str> = context.split(". ")
+        let deduped: Vec<&str> = context
+            .split(". ")
             .filter(|s| !s.trim().is_empty() && seen.insert(s.trim()))
             .collect();
         let deduped_text = deduped.join(". ");
@@ -175,7 +183,12 @@ impl Default for SqzEngine {
 }
 
 impl CompressionEngine for SqzEngine {
-    fn compress(&self, context: &str, threshold: usize, agent_pid: u32) -> Result<CompressedContext, CompressError> {
+    fn compress(
+        &self,
+        context: &str,
+        threshold: usize,
+        agent_pid: u32,
+    ) -> Result<CompressedContext, CompressError> {
         let original_tokens = count_tokens(context);
 
         // below threshold — return as-is
@@ -256,12 +269,20 @@ mod tests {
     use super::*;
 
     fn large_context(words: usize) -> String {
-        (0..words).map(|i| format!("word{i}")).collect::<Vec<_>>().join(" ")
+        (0..words)
+            .map(|i| format!("word{i}"))
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     fn large_context_with_duplicates(unique_sentences: usize, repeat: usize) -> String {
         let sentences: Vec<String> = (0..unique_sentences)
-            .map(|i| (0..10).map(|w| format!("s{i}w{w}")).collect::<Vec<_>>().join(" "))
+            .map(|i| {
+                (0..10)
+                    .map(|w| format!("s{i}w{w}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
             .collect();
         let mut all = Vec::new();
         for _ in 0..repeat {
@@ -283,7 +304,11 @@ mod tests {
         // sqz is not available.
         if !result.used_sqz {
             let reduction = 1.0 - (result.compressed_tokens as f64 / result.original_tokens as f64);
-            assert!(reduction >= 0.20, "expected >= 20% reduction, got {:.1}%", reduction * 100.0);
+            assert!(
+                reduction >= 0.20,
+                "expected >= 20% reduction, got {:.1}%",
+                reduction * 100.0
+            );
         }
     }
 
@@ -327,9 +352,15 @@ mod tests {
         let result = engine.compress(&ctx, 100, 42).unwrap();
         let stats = engine.get_stats();
         assert_eq!(stats.total_tokens_processed, 200);
-        assert_eq!(stats.total_tokens_saved, (200 - result.compressed_tokens) as u64);
+        assert_eq!(
+            stats.total_tokens_saved,
+            (200 - result.compressed_tokens) as u64
+        );
         // sqz may return the text unchanged for synthetic input — tokens_saved can be 0
-        let agent_stats = stats.per_agent.get(&42).expect("agent 42 should have stats");
+        let agent_stats = stats
+            .per_agent
+            .get(&42)
+            .expect("agent 42 should have stats");
         assert_eq!(agent_stats.tokens_processed, 200);
     }
 

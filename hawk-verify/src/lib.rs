@@ -105,7 +105,9 @@ pub fn run_claimcheck(
         }
     }
 
-    let output = cmd.output().map_err(|e| VerifyError::ClaimCheck(e.to_string()))?;
+    let output = cmd
+        .output()
+        .map_err(|e| VerifyError::ClaimCheck(e.to_string()))?;
 
     // claimcheck exits 0 even when claims fail — parse stdout regardless
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -117,7 +119,9 @@ pub fn run_claimcheck(
     }
 
     serde_json::from_str(&stdout).map_err(|e| {
-        VerifyError::ClaimCheck(format!("failed to parse claimcheck JSON: {e}\noutput: {stdout}"))
+        VerifyError::ClaimCheck(format!(
+            "failed to parse claimcheck JSON: {e}\noutput: {stdout}"
+        ))
     })
 }
 
@@ -219,29 +223,36 @@ impl VerificationEngine {
         let cc = run_claimcheck(transcript_path, project_dir, baseline, retest, test_cmd)?;
 
         // Map claimcheck results into our domain types
-        let claims: Vec<ClaimResult> = cc.claims.iter().map(|c| {
-            let verdict = match c.result.as_str() {
-                "PASS" => ClaimVerdict::Pass,
-                "FAIL" => ClaimVerdict::Fail,
-                _ => ClaimVerdict::Inconclusive {
-                    reason: c.reason.clone().unwrap_or_else(|| "unverifiable".to_string()),
-                },
-            };
-            let discrepancies = if let Some(ref r) = c.reason {
-                vec![r.clone()]
-            } else {
-                vec![]
-            };
-            ClaimResult {
-                claim: AgentClaim {
-                    action_type: c.claim_type.clone(),
-                    resource: c.raw_text.clone(),
-                    claimed_at: String::new(),
-                },
-                verdict,
-                discrepancies,
-            }
-        }).collect();
+        let claims: Vec<ClaimResult> = cc
+            .claims
+            .iter()
+            .map(|c| {
+                let verdict = match c.result.as_str() {
+                    "PASS" => ClaimVerdict::Pass,
+                    "FAIL" => ClaimVerdict::Fail,
+                    _ => ClaimVerdict::Inconclusive {
+                        reason: c
+                            .reason
+                            .clone()
+                            .unwrap_or_else(|| "unverifiable".to_string()),
+                    },
+                };
+                let discrepancies = if let Some(ref r) = c.reason {
+                    vec![r.clone()]
+                } else {
+                    vec![]
+                };
+                ClaimResult {
+                    claim: AgentClaim {
+                        action_type: c.claim_type.clone(),
+                        resource: c.raw_text.clone(),
+                        claimed_at: String::new(),
+                    },
+                    verdict,
+                    discrepancies,
+                }
+            })
+            .collect();
 
         let overall_status = if cc.summary.fail > 0 {
             VerificationStatus::Unverified
@@ -270,7 +281,10 @@ impl VerificationEngine {
         claims: Vec<AgentClaim>,
     ) -> Result<VerificationReport, VerifyError> {
         let actions = self.load_actions(session_id)?;
-        let evidence = SessionEvidence { session_id: session_id.to_string(), actions };
+        let evidence = SessionEvidence {
+            session_id: session_id.to_string(),
+            actions,
+        };
 
         let mut results = Vec::with_capacity(claims.len());
         for claim in claims {
@@ -282,7 +296,11 @@ impl VerificationEngine {
                 )],
                 _ => vec![],
             };
-            results.push(ClaimResult { claim, verdict, discrepancies });
+            results.push(ClaimResult {
+                claim,
+                verdict,
+                discrepancies,
+            });
         }
 
         let overall_status = derive_status(&results);
@@ -300,12 +318,18 @@ impl VerificationEngine {
 
     pub fn verify_claim(&self, claim: &AgentClaim, evidence: &SessionEvidence) -> ClaimVerdict {
         if evidence.actions.is_empty() {
-            return ClaimVerdict::Inconclusive { reason: "no evidence".to_string() };
+            return ClaimVerdict::Inconclusive {
+                reason: "no evidence".to_string(),
+            };
         }
         let matched = evidence.actions.iter().any(|a| {
             a.action_type == claim.action_type && action_matches_resource(a, &claim.resource)
         });
-        if matched { ClaimVerdict::Pass } else { ClaimVerdict::Fail }
+        if matched {
+            ClaimVerdict::Pass
+        } else {
+            ClaimVerdict::Fail
+        }
     }
 
     fn load_actions(&self, session_id: &str) -> Result<Vec<SessionAction>, VerifyError> {
@@ -406,16 +430,24 @@ mod tests {
         conn.execute(
             "INSERT INTO sessions (id, started_at) VALUES (?1, datetime('now'))",
             params![id],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
-    fn insert_action(conn: &Connection, session_id: &str, step: i64, action_type: &str, payload: &str) {
+    fn insert_action(
+        conn: &Connection,
+        session_id: &str,
+        step: i64,
+        action_type: &str,
+        payload: &str,
+    ) {
         conn.execute(
             "INSERT INTO session_actions \
              (session_id, step_number, timestamp, action_type, agent_pid, payload) \
              VALUES (?1, ?2, datetime('now'), ?3, 1, ?4)",
             params![session_id, step, action_type, payload],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     // ── claimcheck binary availability ────────────────────────────────────────
@@ -453,7 +485,8 @@ mod tests {
             r#"{"role":"user","content":"Create a file"}
 {"role":"assistant","content":"I created /tmp/hawk-test-claimcheck.txt with the content."}
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = run_claimcheck(&transcript, dir.path(), None, false, None);
         // may succeed or fail depending on whether the file exists — just verify it runs
@@ -479,10 +512,15 @@ mod tests {
             resource: "/tmp/out.txt".into(),
             claimed_at: "2024-01-01T00:00:00Z".into(),
         };
-        let evidence = SessionEvidence { session_id: "s1".into(), actions: vec![] };
+        let evidence = SessionEvidence {
+            session_id: "s1".into(),
+            actions: vec![],
+        };
         assert_eq!(
             engine.verify_claim(&claim, &evidence),
-            ClaimVerdict::Inconclusive { reason: "no evidence".into() }
+            ClaimVerdict::Inconclusive {
+                reason: "no evidence".into()
+            }
         );
     }
 
@@ -532,7 +570,13 @@ mod tests {
     fn verify_session_all_pass_returns_verified() {
         let conn = in_memory_db();
         insert_session(&conn, "sess-pass");
-        insert_action(&conn, "sess-pass", 1, "file_write", r#"{"path":"/tmp/result.txt"}"#);
+        insert_action(
+            &conn,
+            "sess-pass",
+            1,
+            "file_write",
+            r#"{"path":"/tmp/result.txt"}"#,
+        );
         let engine = VerificationEngine::new(conn);
         let claims = vec![AgentClaim {
             action_type: "file_write".into(),
@@ -549,7 +593,13 @@ mod tests {
     fn verify_session_any_fail_returns_unverified() {
         let conn = in_memory_db();
         insert_session(&conn, "sess-fail");
-        insert_action(&conn, "sess-fail", 1, "file_write", r#"{"path":"/tmp/result.txt"}"#);
+        insert_action(
+            &conn,
+            "sess-fail",
+            1,
+            "file_write",
+            r#"{"path":"/tmp/result.txt"}"#,
+        );
         let engine = VerificationEngine::new(conn);
         let claims = vec![
             AgentClaim {
@@ -585,7 +635,13 @@ mod tests {
     fn verify_session_stores_report_in_sqlite() {
         let conn = in_memory_db();
         insert_session(&conn, "sess-store");
-        insert_action(&conn, "sess-store", 1, "file_write", r#"{"path":"/tmp/x.txt"}"#);
+        insert_action(
+            &conn,
+            "sess-store",
+            1,
+            "file_write",
+            r#"{"path":"/tmp/x.txt"}"#,
+        );
         let engine = VerificationEngine::new(conn);
         let claims = vec![AgentClaim {
             action_type: "file_write".into(),
@@ -593,11 +649,14 @@ mod tests {
             claimed_at: "2024-01-01T00:00:00Z".into(),
         }];
         engine.verify_session("sess-store", claims).unwrap();
-        let count: i64 = engine.db.query_row(
-            "SELECT COUNT(*) FROM verification_reports WHERE session_id = 'sess-store'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let count: i64 = engine
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM verification_reports WHERE session_id = 'sess-store'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 1);
     }
 
@@ -614,7 +673,13 @@ mod tests {
     fn discrepancies_populated_on_fail() {
         let conn = in_memory_db();
         insert_session(&conn, "sess-disc");
-        insert_action(&conn, "sess-disc", 1, "file_write", r#"{"path":"/tmp/other.txt"}"#);
+        insert_action(
+            &conn,
+            "sess-disc",
+            1,
+            "file_write",
+            r#"{"path":"/tmp/other.txt"}"#,
+        );
         let engine = VerificationEngine::new(conn);
         let claims = vec![AgentClaim {
             action_type: "file_write".into(),

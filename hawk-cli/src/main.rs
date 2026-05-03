@@ -15,7 +15,10 @@ pub enum VaultCommand {
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     Show,
-    Set { key: String, value: String },
+    Set {
+        key: String,
+        value: String,
+    },
     /// Display configured LLM providers and their availability
     Llm,
 }
@@ -81,9 +84,13 @@ pub enum SdkCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum SyncCommand {
-    Enable { shared_secret: String },
+    Enable {
+        shared_secret: String,
+    },
     /// Mark an agent or memory namespace for sync
-    Select { item: String },
+    Select {
+        item: String,
+    },
     Status,
     Peers,
     /// Set conflict resolution strategy
@@ -232,7 +239,7 @@ fn print_ps(agents: &[hawk_core::types::AgentStatus]) {
         println!("No agents running.");
         return;
     }
-    println!("{:<6} {:<20} {:<10} {}", "PID", "NAME", "STATE", "UPTIME");
+    println!("{:<6} {:<20} {:<10} UPTIME", "PID", "NAME", "STATE");
     for a in agents {
         println!(
             "{:<6} {:<20} {:<10} {}",
@@ -290,10 +297,7 @@ fn print_token_stats(stats: &hawk_compress::CompressionStats) {
     };
     println!(
         "{:<8} {:<20} {:<20} {:.1}%",
-        "TOTAL",
-        stats.total_tokens_processed,
-        stats.total_tokens_saved,
-        total_pct
+        "TOTAL", stats.total_tokens_processed, stats.total_tokens_saved, total_pct
     );
     println!("Cache entries: {}", stats.cache_entries);
 }
@@ -315,16 +319,16 @@ fn print_llm_providers(providers: &[hawk_core::config::LlmProvider]) {
         println!("Add providers to hawk.toml under [llm.providers].");
         return;
     }
-    println!(
-        "{:<4} {:<16} {:<42} {}",
-        "PRI", "NAME", "ENDPOINT", "STATUS"
-    );
+    println!("{:<4} {:<16} {:<42} STATUS", "PRI", "NAME", "ENDPOINT");
     println!("{}", "-".repeat(70));
     let mut sorted: Vec<&hawk_core::config::LlmProvider> = providers.iter().collect();
     sorted.sort_by_key(|p| p.priority);
     for p in sorted {
         let status = ping_provider(&p.endpoint);
-        println!("{:<4} {:<16} {:<42} {}", p.priority, p.name, p.endpoint, status);
+        println!(
+            "{:<4} {:<16} {:<42} {}",
+            p.priority, p.name, p.endpoint, status
+        );
     }
 }
 
@@ -337,18 +341,14 @@ fn print_cost_stats(
         return;
     }
     println!(
-        "{:<8} {:<16} {:<16} {:<16} {}",
-        "PID", "PROMPT TOKENS", "COMPL TOKENS", "TOTAL TOKENS", "EST COST ($)"
+        "{:<8} {:<16} {:<16} {:<16} EST COST ($)",
+        "PID", "PROMPT TOKENS", "COMPL TOKENS", "TOTAL TOKENS"
     );
     println!("{}", "-".repeat(72));
     for (pid, s) in all_stats {
         println!(
             "{:<8} {:<16} {:<16} {:<16} {:.6}",
-            pid,
-            s.total_prompt_tokens,
-            s.total_completion_tokens,
-            s.total_tokens,
-            s.estimated_cost,
+            pid, s.total_prompt_tokens, s.total_completion_tokens, s.total_tokens, s.estimated_cost,
         );
         if let Some(trend) = trend_map.get(pid) {
             if !trend.is_empty() {
@@ -624,7 +624,13 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
             }
         },
 
-        HawkCommand::Verify { session_id, transcript, project_dir, baseline, retest } => {
+        HawkCommand::Verify {
+            session_id,
+            transcript,
+            project_dir,
+            baseline,
+            retest,
+        } => {
             use hawk_verify::{claimcheck_available, VerificationEngine};
             let db = hawk_core::db::init_database(&db_path())?;
             let engine = VerificationEngine::new(db);
@@ -656,11 +662,12 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
             } else {
                 // No transcript — use SQLite session_actions fallback
                 if claimcheck_available() {
-                    println!("tip: pass --transcript <file.jsonl> to use the real claimcheck binary");
+                    println!(
+                        "tip: pass --transcript <file.jsonl> to use the real claimcheck binary"
+                    );
                     println!("     claimcheck checks files on disk, git history, and lockfiles.\n");
                 }
-                let claims = load_claims_from_session(&engine.db, &session_id)
-                    .unwrap_or_default();
+                let claims = load_claims_from_session(&engine.db, &session_id).unwrap_or_default();
                 if claims.is_empty() {
                     println!("Session: {session_id}");
                     println!("Status: no actions recorded");
@@ -678,7 +685,9 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                 println!("not yet implemented");
             }
             StatsCommand::Tokens => {
-                use hawk_compress::{CompressionEngine, SqzEngine, sqz_available, sqz_stats_raw, sqz_gain_raw};
+                use hawk_compress::{
+                    sqz_available, sqz_gain_raw, sqz_stats_raw, CompressionEngine, SqzEngine,
+                };
                 let engine = SqzEngine::new();
                 let stats = engine.get_stats();
 
@@ -717,47 +726,49 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
             }
         },
 
-        HawkCommand::Watch(watch_cmd) => match watch_cmd {
-            WatchCommand::Report => {
-                let db = hawk_core::db::init_database(&db_path())?;
-                let engine = hawk_watch::WatchEngine::new(db);
-                let report = engine.generate_report()?;
-                print!("{}", hawk_watch::format_report(&report));
-            }
-            WatchCommand::Scan { agent, path } => {
-                use hawk_watch::{ghostdep_available, etch_available};
-                let db = hawk_core::db::init_database(&db_path())?;
-                let engine = hawk_watch::WatchEngine::new(db);
-                let project_path = std::path::PathBuf::from(&path);
-
-                if ghostdep_available() {
-                    println!("Running ghostdep on {}...", project_path.display());
-                    let count = engine.run_ghostdep_scan(&agent, &project_path)?;
-                    if count == 0 {
-                        println!("No phantom or unused dependencies found.");
-                    } else {
-                        println!("Found {count} dependency issue(s). Run 'hawk watch report' to see details.");
-                    }
-                } else {
-                    println!("ghostdep not found. Install it to enable dependency scanning:");
-                    println!("  curl -fsSL https://raw.githubusercontent.com/ojuschugh1/ghostdep/main/install.sh | sh");
+        HawkCommand::Watch(watch_cmd) => {
+            match watch_cmd {
+                WatchCommand::Report => {
+                    let db = hawk_core::db::init_database(&db_path())?;
+                    let engine = hawk_watch::WatchEngine::new(db);
+                    let report = engine.generate_report()?;
+                    print!("{}", hawk_watch::format_report(&report));
                 }
+                WatchCommand::Scan { agent, path } => {
+                    use hawk_watch::{etch_available, ghostdep_available};
+                    let db = hawk_core::db::init_database(&db_path())?;
+                    let engine = hawk_watch::WatchEngine::new(db);
+                    let project_path = std::path::PathBuf::from(&path);
 
-                if etch_available() {
-                    println!("\nRunning etch test on {}...", project_path.display());
-                    let count = engine.run_etch_scan(&project_path)?;
-                    if count == 0 {
-                        println!("No API drift detected.");
+                    if ghostdep_available() {
+                        println!("Running ghostdep on {}...", project_path.display());
+                        let count = engine.run_ghostdep_scan(&agent, &project_path)?;
+                        if count == 0 {
+                            println!("No phantom or unused dependencies found.");
+                        } else {
+                            println!("Found {count} dependency issue(s). Run 'hawk watch report' to see details.");
+                        }
                     } else {
-                        println!("Found {count} API drift(s). Run 'hawk watch report' to see details.");
+                        println!("ghostdep not found. Install it to enable dependency scanning:");
+                        println!("  curl -fsSL https://raw.githubusercontent.com/ojuschugh1/ghostdep/main/install.sh | sh");
                     }
-                } else {
-                    println!("\netch not found. Install it to enable API drift detection:");
-                    println!("  go install github.com/ojuschugh1/etch/cmd/etch@latest");
+
+                    if etch_available() {
+                        println!("\nRunning etch test on {}...", project_path.display());
+                        let count = engine.run_etch_scan(&project_path)?;
+                        if count == 0 {
+                            println!("No API drift detected.");
+                        } else {
+                            println!("Found {count} API drift(s). Run 'hawk watch report' to see details.");
+                        }
+                    } else {
+                        println!("\netch not found. Install it to enable API drift detection:");
+                        println!("  go install github.com/ojuschugh1/etch/cmd/etch@latest");
+                    }
                 }
+                _ => println!("not yet implemented"),
             }
-            _ => println!("not yet implemented"),
-        },
+        }
 
         HawkCommand::Eye => {
             hawk_ui::run()?;
@@ -768,7 +779,11 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                 println!("hawk-sdk-rust v{}", env!("CARGO_PKG_VERSION"));
                 println!("Supported languages: rust, python, typescript");
             }
-            SdkCommand::Init { language, name, output } => {
+            SdkCommand::Init {
+                language,
+                name,
+                output,
+            } => {
                 use hawk_sdk_rust::scaffold;
                 use std::fs;
                 use std::path::PathBuf;
@@ -799,8 +814,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
         },
 
         HawkCommand::Orchestrate { task_description } => {
-            use hawk_core::orchestrator::Orchestrator;
             use hawk_core::db::init_database;
+            use hawk_core::orchestrator::Orchestrator;
 
             let db = init_database(&db_path())?;
             let bus = hawk_bus::MessageBus::new();
@@ -808,9 +823,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
 
             // Load registered agents from the database and register their capabilities.
             {
-                let mut stmt = db.prepare(
-                    "SELECT pid, name FROM agents WHERE state = 'Running'",
-                )?;
+                let mut stmt =
+                    db.prepare("SELECT pid, name FROM agents WHERE state = 'Running'")?;
                 let rows = stmt.query_map([], |row| {
                     Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?))
                 })?;
@@ -906,7 +920,7 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
         }
 
         HawkCommand::Nest(nest_cmd) => {
-            use hawk_nest::{NestClient, make_signature};
+            use hawk_nest::{make_signature, NestClient};
             let db = hawk_core::db::init_database(&db_path())?;
             let client = NestClient::new(db);
             match nest_cmd {
@@ -916,8 +930,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                         println!("No packages found for '{query}'.");
                     } else {
                         println!(
-                            "{:<24} {:<10} {:<16} {:<12} {:<10} {}",
-                            "NAME", "VERSION", "AUTHOR", "TYPE", "DOWNLOADS", "COMPATIBILITY"
+                            "{:<24} {:<10} {:<16} {:<12} {:<10} COMPATIBILITY",
+                            "NAME", "VERSION", "AUTHOR", "TYPE", "DOWNLOADS"
                         );
                         println!("{}", "-".repeat(90));
                         for p in &results {
@@ -967,12 +981,14 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
             let mut engine = SyncEngine::new();
             match sync_cmd {
                 SyncCommand::Enable { shared_secret } => {
-                    engine.enable(&shared_secret).map_err(|e| anyhow::anyhow!("{e}"))?;
+                    engine
+                        .enable(&shared_secret)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?;
                     println!("Sync enabled.");
                 }
                 SyncCommand::Select { item } => {
-                    let sync_item = if item.starts_with("memory:") {
-                        SyncItem::MemoryNamespace(item["memory:".len()..].to_string())
+                    let sync_item = if let Some(ns) = item.strip_prefix("memory:") {
+                        SyncItem::MemoryNamespace(ns.to_string())
                     } else {
                         SyncItem::Agent(item.clone())
                     };
@@ -986,8 +1002,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                         println!("Pending changes: {}", engine.get_queued_count());
                     } else {
                         println!(
-                            "{:<24} {:<24} {:<14} {}",
-                            "DEVICE ID", "LAST SYNC", "STATUS", "PENDING"
+                            "{:<24} {:<24} {:<14} PENDING",
+                            "DEVICE ID", "LAST SYNC", "STATUS"
                         );
                         println!("{}", "-".repeat(70));
                         for p in &peers {
@@ -1049,8 +1065,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                         println!("No healing events for agent {agent_id}.");
                     } else {
                         println!(
-                            "{:<4} {:<28} {:<20} {:<18} {:<8} {}",
-                            "ID", "TIMESTAMP", "ERROR", "ADJUSTMENT", "ATTEMPT", "OUTCOME"
+                            "{:<4} {:<28} {:<20} {:<18} {:<8} OUTCOME",
+                            "ID", "TIMESTAMP", "ERROR", "ADJUSTMENT", "ATTEMPT"
                         );
                         println!("{}", "-".repeat(90));
                         for ev in &events {
@@ -1070,8 +1086,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
         }
 
         HawkCommand::Patterns(patterns_cmd) => {
-            use hawk_core::pattern_detector::PatternDetector;
             use hawk_core::config_engine::LayeredConfig;
+            use hawk_core::pattern_detector::PatternDetector;
 
             let db = hawk_core::db::init_database(&db_path())?;
             let retention = LayeredConfig::load(None)
@@ -1082,23 +1098,21 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
 
             match patterns_cmd {
                 PatternsCommand::List => {
-                    let patterns = detector.list_patterns()
+                    let patterns = detector
+                        .list_patterns()
                         .map_err(|e| anyhow::anyhow!("{e}"))?;
                     if patterns.is_empty() {
                         println!("No patterns detected.");
                     } else {
                         println!(
-                            "{:<38} {:<8} {:<28} {}",
-                            "ID", "COUNT", "LAST OCCURRENCE", "STATUS"
+                            "{:<38} {:<8} {:<28} STATUS",
+                            "ID", "COUNT", "LAST OCCURRENCE"
                         );
                         println!("{}", "-".repeat(82));
                         for p in &patterns {
                             println!(
                                 "{:<38} {:<8} {:<28} {}",
-                                p.id,
-                                p.occurrence_count,
-                                p.last_occurrence,
-                                p.status,
+                                p.id, p.occurrence_count, p.last_occurrence, p.status,
                             );
                             let seq_display = p.action_sequence.join(" → ");
                             println!("  {seq_display}");
@@ -1106,18 +1120,23 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                     }
                 }
                 PatternsCommand::Accept { pattern_id } => {
-                    let manifest = detector.accept_pattern(&pattern_id)
+                    let manifest = detector
+                        .accept_pattern(&pattern_id)
                         .map_err(|e| anyhow::anyhow!("{e}"))?;
                     println!("Pattern {pattern_id} accepted. Generated Agent_Manifest:");
                     println!("{manifest}");
                 }
                 PatternsCommand::Decline { pattern_id } => {
-                    detector.decline_pattern(&pattern_id)
+                    detector
+                        .decline_pattern(&pattern_id)
                         .map_err(|e| anyhow::anyhow!("{e}"))?;
-                    println!("Pattern {pattern_id} declined. Use 'hawk patterns reset' to re-enable.");
+                    println!(
+                        "Pattern {pattern_id} declined. Use 'hawk patterns reset' to re-enable."
+                    );
                 }
                 PatternsCommand::Reset => {
-                    let count = detector.reset_declined()
+                    let count = detector
+                        .reset_declined()
                         .map_err(|e| anyhow::anyhow!("{e}"))?;
                     println!("Re-enabled {count} declined pattern(s).");
                 }
@@ -1125,7 +1144,7 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
         }
 
         HawkCommand::Talon(talon_cmd) => {
-            use hawk_core::talon::{Capability, TalonRegistry, make_signature};
+            use hawk_core::talon::{make_signature, TalonRegistry};
             let registry = TalonRegistry::new();
             match talon_cmd {
                 TalonCommand::Install { name } => {
@@ -1153,8 +1172,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
                     } else {
                         talons.sort_by(|a, b| a.name.cmp(&b.name));
                         println!(
-                            "{:<20} {:<10} {:<12} {}",
-                            "NAME", "VERSION", "STATUS", "CAPABILITIES"
+                            "{:<20} {:<10} {:<12} CAPABILITIES",
+                            "NAME", "VERSION", "STATUS"
                         );
                         println!("{}", "-".repeat(60));
                         for t in &talons {
@@ -1183,7 +1202,12 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
             }
         }
 
-        HawkCommand::Setup { yes, force, only, skip } => {
+        HawkCommand::Setup {
+            yes,
+            force,
+            only,
+            skip,
+        } => {
             let opts = setup::SetupOptions {
                 skip_installed: !force,
                 force_update: force,
@@ -1210,7 +1234,9 @@ mod tests {
     #[test]
     fn run_parses_command_string() {
         let cmd = parse(&["hawk", "run", "python agent.py"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Run { agent_command } if agent_command == "python agent.py"));
+        assert!(
+            matches!(cmd, HawkCommand::Run { agent_command } if agent_command == "python agent.py")
+        );
     }
 
     #[test]
@@ -1255,7 +1281,9 @@ mod tests {
     #[test]
     fn undo_with_snapshot_id() {
         let cmd = parse(&["hawk", "undo", "snap-abc-123"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Undo { snapshot_id: Some(ref id) } if id == "snap-abc-123"));
+        assert!(
+            matches!(cmd, HawkCommand::Undo { snapshot_id: Some(ref id) } if id == "snap-abc-123")
+        );
     }
 
     #[test]
@@ -1288,7 +1316,9 @@ mod tests {
     #[test]
     fn vault_get_parses_key() {
         let cmd = parse(&["hawk", "vault", "get", "MY_KEY"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Vault(VaultCommand::Get { ref key }) if key == "MY_KEY"));
+        assert!(
+            matches!(cmd, HawkCommand::Vault(VaultCommand::Get { ref key }) if key == "MY_KEY")
+        );
     }
 
     #[test]
@@ -1377,25 +1407,33 @@ mod tests {
     #[test]
     fn verify_parses_session_id() {
         let cmd = parse(&["hawk", "verify", "sess-001"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Verify { ref session_id, .. } if session_id == "sess-001"));
+        assert!(
+            matches!(cmd, HawkCommand::Verify { ref session_id, .. } if session_id == "sess-001")
+        );
     }
 
     #[test]
     fn replay_parses_session_id() {
         let cmd = parse(&["hawk", "replay", "sess-002"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Replay { session_id, step: None } if session_id == "sess-002"));
+        assert!(
+            matches!(cmd, HawkCommand::Replay { session_id, step: None } if session_id == "sess-002")
+        );
     }
 
     #[test]
     fn replay_parses_step_flag() {
         let cmd = parse(&["hawk", "replay", "sess-003", "--step", "5"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Replay { session_id, step: Some(5) } if session_id == "sess-003"));
+        assert!(
+            matches!(cmd, HawkCommand::Replay { session_id, step: Some(5) } if session_id == "sess-003")
+        );
     }
 
     #[test]
     fn orchestrate_parses_task_description() {
         let cmd = parse(&["hawk", "orchestrate", "research quantum computing"]).unwrap();
-        assert!(matches!(cmd, HawkCommand::Orchestrate { task_description } if task_description == "research quantum computing"));
+        assert!(
+            matches!(cmd, HawkCommand::Orchestrate { task_description } if task_description == "research quantum computing")
+        );
     }
 
     #[test]

@@ -103,7 +103,13 @@ struct GhostDepFinding {
 /// Returns an empty vec if ghostdep is not installed or the scan fails.
 pub fn ghostdep_scan(project_path: &Path) -> Vec<String> {
     let output = Command::new("ghostdep")
-        .args(["-p", &project_path.to_string_lossy(), "-f", "json", "--quiet"])
+        .args([
+            "-p",
+            &project_path.to_string_lossy(),
+            "-f",
+            "json",
+            "--quiet",
+        ])
         .output();
 
     let output = match output {
@@ -116,7 +122,8 @@ pub fn ghostdep_scan(project_path: &Path) -> Vec<String> {
         Err(_) => return Vec::new(),
     };
 
-    findings.into_iter()
+    findings
+        .into_iter()
         .filter(|f| {
             // report both phantom (missing from manifest) and unused (declared but never imported)
             (f.finding_type == "phantom" || f.finding_type == "unused")
@@ -190,13 +197,19 @@ pub fn etch_test(project_path: &Path) -> Vec<(String, Vec<FieldChange>)> {
         Err(_) => return Vec::new(),
     };
 
-    report.results.into_iter()
+    report
+        .results
+        .into_iter()
         .filter(|r| !r.diffs.is_empty())
         .map(|r| {
-            let changes = r.diffs.into_iter().map(|d| FieldChange {
-                field: d.field,
-                change_type: d.severity.unwrap_or_else(|| "modified".to_string()),
-            }).collect();
+            let changes = r
+                .diffs
+                .into_iter()
+                .map(|d| FieldChange {
+                    field: d.field,
+                    change_type: d.severity.unwrap_or_else(|| "modified".to_string()),
+                })
+                .collect();
             (r.endpoint, changes)
         })
         .collect()
@@ -217,7 +230,9 @@ impl WatchEngine {
     pub fn new(db: Connection) -> Self {
         Self {
             db: Arc::new(Mutex::new(db)),
-            state: Arc::new(Mutex::new(State { monitored_agents: Vec::new() })),
+            state: Arc::new(Mutex::new(State {
+                monitored_agents: Vec::new(),
+            })),
         }
     }
 
@@ -246,7 +261,11 @@ impl WatchEngine {
 
     /// Run `ghostdep` on `project_path` and store any phantom/unused dep findings.
     /// Requires `ghostdep` to be installed.
-    pub fn run_ghostdep_scan(&self, agent_name: &str, project_path: &Path) -> Result<usize, WatchError> {
+    pub fn run_ghostdep_scan(
+        &self,
+        agent_name: &str,
+        project_path: &Path,
+    ) -> Result<usize, WatchError> {
         let findings = ghostdep_scan(project_path);
         let count = findings.len();
         for dep in findings {
@@ -255,7 +274,11 @@ impl WatchEngine {
         Ok(count)
     }
 
-    pub fn emit_api_drift(&self, endpoint: &str, field_changes: Vec<FieldChange>) -> Result<(), WatchError> {
+    pub fn emit_api_drift(
+        &self,
+        endpoint: &str,
+        field_changes: Vec<FieldChange>,
+    ) -> Result<(), WatchError> {
         let alert = WatchAlert::ApiDrift {
             endpoint: endpoint.to_owned(),
             field_changes,
@@ -302,7 +325,11 @@ impl WatchEngine {
             let alert = match alert_type.as_str() {
                 "api_drift" => {
                     let d: ApiDriftDetails = serde_json::from_str(&details_json)?;
-                    WatchAlert::ApiDrift { endpoint: d.endpoint, field_changes: d.field_changes, timestamp }
+                    WatchAlert::ApiDrift {
+                        endpoint: d.endpoint,
+                        field_changes: d.field_changes,
+                        timestamp,
+                    }
                 }
                 "phantom_dep" => {
                     let d: PhantomDepDetails = serde_json::from_str(&details_json)?;
@@ -329,17 +356,28 @@ impl WatchEngine {
                 WatchAlert::PhantomDependency { .. } => phantom_deps.push(alert),
             }
         }
-        Ok(WatchReport { api_drifts, phantom_deps, generated_at: Utc::now().to_rfc3339() })
+        Ok(WatchReport {
+            api_drifts,
+            phantom_deps,
+            generated_at: Utc::now().to_rfc3339(),
+        })
     }
 
     fn store_alert(&self, alert: &WatchAlert) -> Result<(), WatchError> {
         let db = self.db.lock().map_err(|_| WatchError::LockPoisoned)?;
         let details_json = match alert {
-            WatchAlert::ApiDrift { endpoint, field_changes, .. } => {
-                serde_json::to_string(&ApiDriftDetails { endpoint: endpoint.clone(), field_changes: field_changes.clone() })?
-            }
+            WatchAlert::ApiDrift {
+                endpoint,
+                field_changes,
+                ..
+            } => serde_json::to_string(&ApiDriftDetails {
+                endpoint: endpoint.clone(),
+                field_changes: field_changes.clone(),
+            })?,
             WatchAlert::PhantomDependency { dependency, .. } => {
-                serde_json::to_string(&PhantomDepDetails { dependency: dependency.clone() })?
+                serde_json::to_string(&PhantomDepDetails {
+                    dependency: dependency.clone(),
+                })?
             }
         };
         db.execute(
@@ -352,11 +390,13 @@ impl WatchEngine {
     /// Try to look up the agent's working directory from the agents table.
     fn agent_project_path(&self, agent_name: &str) -> Option<std::path::PathBuf> {
         let db = self.db.lock().ok()?;
-        let path: String = db.query_row(
-            "SELECT manifest_path FROM agents WHERE name = ?1 ORDER BY started_at DESC LIMIT 1",
-            params![agent_name],
-            |row| row.get(0),
-        ).ok()?;
+        let path: String = db
+            .query_row(
+                "SELECT manifest_path FROM agents WHERE name = ?1 ORDER BY started_at DESC LIMIT 1",
+                params![agent_name],
+                |row| row.get(0),
+            )
+            .ok()?;
         // manifest_path stores the entry_command; derive the directory from it
         let p = std::path::Path::new(&path);
         p.parent().map(|d| d.to_path_buf())
@@ -376,7 +416,10 @@ struct PhantomDepDetails {
 
 pub fn format_report(report: &WatchReport) -> String {
     let mut out = String::new();
-    out.push_str(&format!("Watch Report — generated at {}\n", report.generated_at));
+    out.push_str(&format!(
+        "Watch Report — generated at {}\n",
+        report.generated_at
+    ));
     out.push_str(&"=".repeat(60));
     out.push('\n');
 
@@ -389,7 +432,12 @@ pub fn format_report(report: &WatchReport) -> String {
         }
     } else {
         for alert in &report.api_drifts {
-            if let WatchAlert::ApiDrift { endpoint, field_changes, timestamp } = alert {
+            if let WatchAlert::ApiDrift {
+                endpoint,
+                field_changes,
+                timestamp,
+            } = alert
+            {
                 out.push_str(&format!("  [{timestamp}] {endpoint}\n"));
                 for fc in field_changes {
                     out.push_str(&format!("    {} {}\n", fc.change_type, fc.field));
@@ -398,7 +446,10 @@ pub fn format_report(report: &WatchReport) -> String {
         }
     }
 
-    out.push_str(&format!("\nPhantom Dependencies ({})\n", report.phantom_deps.len()));
+    out.push_str(&format!(
+        "\nPhantom Dependencies ({})\n",
+        report.phantom_deps.len()
+    ));
     if report.phantom_deps.is_empty() {
         out.push_str("  (none)\n");
         if !ghostdep_available() {
@@ -407,8 +458,15 @@ pub fn format_report(report: &WatchReport) -> String {
         }
     } else {
         for alert in &report.phantom_deps {
-            if let WatchAlert::PhantomDependency { agent_name, dependency, timestamp } = alert {
-                out.push_str(&format!("  [{timestamp}] agent={agent_name} dep={dependency}\n"));
+            if let WatchAlert::PhantomDependency {
+                agent_name,
+                dependency,
+                timestamp,
+            } = alert
+            {
+                out.push_str(&format!(
+                    "  [{timestamp}] agent={agent_name} dep={dependency}\n"
+                ));
             }
         }
     }
@@ -439,7 +497,8 @@ mod tests {
                 started_at TEXT NOT NULL,
                 session_id TEXT NOT NULL
             );",
-        ).unwrap();
+        )
+        .unwrap();
         WatchEngine::new(db)
     }
 
@@ -447,14 +506,25 @@ mod tests {
     fn emit_api_drift_stores_correct_alert_structure() {
         let e = engine();
         let changes = vec![
-            FieldChange { field: "user_id".into(), change_type: "removed".into() },
-            FieldChange { field: "account_id".into(), change_type: "added".into() },
+            FieldChange {
+                field: "user_id".into(),
+                change_type: "removed".into(),
+            },
+            FieldChange {
+                field: "account_id".into(),
+                change_type: "added".into(),
+            },
         ];
-        e.emit_api_drift("https://api.example.com/v2/users", changes.clone()).unwrap();
+        e.emit_api_drift("https://api.example.com/v2/users", changes.clone())
+            .unwrap();
         let alerts = e.get_alerts().unwrap();
         assert_eq!(alerts.len(), 1);
         match &alerts[0] {
-            WatchAlert::ApiDrift { endpoint, field_changes, .. } => {
+            WatchAlert::ApiDrift {
+                endpoint,
+                field_changes,
+                ..
+            } => {
                 assert_eq!(endpoint, "https://api.example.com/v2/users");
                 assert_eq!(field_changes, &changes);
             }
@@ -465,7 +535,8 @@ mod tests {
     #[test]
     fn api_drift_alert_has_non_empty_timestamp() {
         let e = engine();
-        e.emit_api_drift("https://api.example.com/health", vec![]).unwrap();
+        e.emit_api_drift("https://api.example.com/health", vec![])
+            .unwrap();
         let alerts = e.get_alerts().unwrap();
         match &alerts[0] {
             WatchAlert::ApiDrift { timestamp, .. } => assert!(!timestamp.is_empty()),
@@ -492,11 +563,16 @@ mod tests {
     #[test]
     fn emit_phantom_dep_flags_unused_package() {
         let e = engine();
-        e.emit_phantom_dep("research-agent", "unused-crate").unwrap();
+        e.emit_phantom_dep("research-agent", "unused-crate")
+            .unwrap();
         let alerts = e.get_alerts().unwrap();
         assert_eq!(alerts.len(), 1);
         match &alerts[0] {
-            WatchAlert::PhantomDependency { agent_name, dependency, .. } => {
+            WatchAlert::PhantomDependency {
+                agent_name,
+                dependency,
+                ..
+            } => {
                 assert_eq!(agent_name, "research-agent");
                 assert_eq!(dependency, "unused-crate");
             }
@@ -514,7 +590,8 @@ mod tests {
     #[test]
     fn alerts_are_stored_in_sqlite_and_retrieved() {
         let e = engine();
-        e.emit_api_drift("https://api.example.com/v1", vec![]).unwrap();
+        e.emit_api_drift("https://api.example.com/v1", vec![])
+            .unwrap();
         e.emit_phantom_dep("agent-a", "ghost-lib").unwrap();
         assert_eq!(e.get_alerts().unwrap().len(), 2);
     }
@@ -522,12 +599,16 @@ mod tests {
     #[test]
     fn multiple_api_drift_alerts_stored_in_order() {
         let e = engine();
-        e.emit_api_drift("https://api.example.com/a", vec![]).unwrap();
-        e.emit_api_drift("https://api.example.com/b", vec![]).unwrap();
+        e.emit_api_drift("https://api.example.com/a", vec![])
+            .unwrap();
+        e.emit_api_drift("https://api.example.com/b", vec![])
+            .unwrap();
         let alerts = e.get_alerts().unwrap();
         assert_eq!(alerts.len(), 2);
         match &alerts[0] {
-            WatchAlert::ApiDrift { endpoint, .. } => assert_eq!(endpoint, "https://api.example.com/a"),
+            WatchAlert::ApiDrift { endpoint, .. } => {
+                assert_eq!(endpoint, "https://api.example.com/a")
+            }
             _ => panic!(),
         }
     }
@@ -541,9 +622,17 @@ mod tests {
     #[test]
     fn generate_report_aggregates_api_drifts_and_phantom_deps() {
         let e = engine();
-        e.emit_api_drift("https://api.example.com/v1", vec![FieldChange { field: "id".into(), change_type: "modified".into() }]).unwrap();
+        e.emit_api_drift(
+            "https://api.example.com/v1",
+            vec![FieldChange {
+                field: "id".into(),
+                change_type: "modified".into(),
+            }],
+        )
+        .unwrap();
         e.emit_phantom_dep("agent-b", "stale-dep").unwrap();
-        e.emit_api_drift("https://api.example.com/v2", vec![]).unwrap();
+        e.emit_api_drift("https://api.example.com/v2", vec![])
+            .unwrap();
         let report = e.generate_report().unwrap();
         assert_eq!(report.api_drifts.len(), 2);
         assert_eq!(report.phantom_deps.len(), 1);
@@ -561,7 +650,14 @@ mod tests {
     #[test]
     fn format_report_includes_endpoint_and_dep_info() {
         let e = engine();
-        e.emit_api_drift("https://api.example.com/users", vec![FieldChange { field: "email".into(), change_type: "removed".into() }]).unwrap();
+        e.emit_api_drift(
+            "https://api.example.com/users",
+            vec![FieldChange {
+                field: "email".into(),
+                change_type: "removed".into(),
+            }],
+        )
+        .unwrap();
         e.emit_phantom_dep("coder-agent", "unused-lib").unwrap();
         let report = e.generate_report().unwrap();
         let output = format_report(&report);
@@ -583,11 +679,21 @@ mod tests {
     fn field_change_types_are_preserved() {
         let e = engine();
         let changes = vec![
-            FieldChange { field: "a".into(), change_type: "added".into() },
-            FieldChange { field: "b".into(), change_type: "removed".into() },
-            FieldChange { field: "c".into(), change_type: "modified".into() },
+            FieldChange {
+                field: "a".into(),
+                change_type: "added".into(),
+            },
+            FieldChange {
+                field: "b".into(),
+                change_type: "removed".into(),
+            },
+            FieldChange {
+                field: "c".into(),
+                change_type: "modified".into(),
+            },
         ];
-        e.emit_api_drift("https://api.example.com/test", changes).unwrap();
+        e.emit_api_drift("https://api.example.com/test", changes)
+            .unwrap();
         let alerts = e.get_alerts().unwrap();
         if let WatchAlert::ApiDrift { field_changes, .. } = &alerts[0] {
             assert_eq!(field_changes[0].change_type, "added");
@@ -623,7 +729,9 @@ mod tests {
     fn run_ghostdep_scan_on_real_project_does_not_panic() {
         let e = engine();
         // scan the openhawk workspace itself — ghostdep may or may not be installed
-        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
         let _ = e.run_ghostdep_scan("hawk-watch", workspace);
     }
 }

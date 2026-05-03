@@ -11,12 +11,29 @@
 
 <p align="center">
   <a href="https://crates.io/crates/openhawk"><img src="https://img.shields.io/crates/v/openhawk?logo=rust&logoColor=white&label=crates.io&color=e6522c" alt="crates.io"></a>
-  <a href="https://github.com/ojuschugh1/openhawk/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
+  <a href="https://github.com/ojuschugh1/OpenHawk/actions/workflows/ci.yml"><img src="https://github.com/ojuschugh1/OpenHawk/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ojuschugh1/OpenHawk/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
 
 OpenHawk is a local-first Agent Operating System built in Rust. It manages AI agents as first-class OS processes — filesystem safety through Copy-on-Write snapshots, inter-agent communication over a JSON-RPC bus, per-agent permission sandboxing, encrypted secrets management, and a TUI dashboard for real-time observability.
 
 Works with any agent framework: CrewAI, LangGraph, AutoGen, custom scripts, or anything that runs as a process.
+
+---
+
+## Part of the same stack
+
+OpenHawk is the **process kernel** — it spawns, sandboxes, snapshots, and orchestrates agents.
+[Aura](https://github.com/ojuschugh1/Aura) is the **intelligence layer** — it gives those agents persistent memory, a self-improving knowledge wiki, claim verification, and model routing via MCP.
+
+They're designed to work together. `openhawk setup --yes` installs Aura automatically. When Aura is running, `openhawk` agents get persistent cross-session memory for free.
+
+| | OpenHawk | Aura |
+|---|---|---|
+| Language | Rust | Go |
+| What it wraps | Your agent scripts | Your AI coding tools |
+| Interface | CLI process supervisor | MCP daemon (localhost:7437) |
+| Primary job | spawn · snapshot · orchestrate · sandbox | memory · wiki · verify · route |
 
 ---
 

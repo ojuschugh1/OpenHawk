@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -44,7 +44,8 @@ impl TokenTracker {
         completion_tokens: u32,
         pricing: Option<f64>,
     ) -> Result<(), TokenError> {
-        let estimated_cost = pricing.map(|price| (prompt_tokens + completion_tokens) as f64 * price);
+        let estimated_cost =
+            pricing.map(|price| (prompt_tokens + completion_tokens) as f64 * price);
         self.db.execute(
             "INSERT INTO token_usage (agent_pid, timestamp, provider, prompt_tokens, completion_tokens, estimated_cost) \
              VALUES (?1, datetime('now'), ?2, ?3, ?4, ?5)",
@@ -86,13 +87,16 @@ impl TokenTracker {
         let mut result = Vec::new();
         for row in rows {
             let (pid, prompt, completion, cost) = row?;
-            result.push((pid, AgentTokenStats {
-                agent_pid: pid,
-                total_prompt_tokens: prompt,
-                total_completion_tokens: completion,
-                total_tokens: prompt + completion,
-                estimated_cost: cost,
-            }));
+            result.push((
+                pid,
+                AgentTokenStats {
+                    agent_pid: pid,
+                    total_prompt_tokens: prompt,
+                    total_completion_tokens: completion,
+                    total_tokens: prompt + completion,
+                    estimated_cost: cost,
+                },
+            ));
         }
         Ok(result)
     }
@@ -162,7 +166,9 @@ mod tests {
     fn multiple_records_accumulate() {
         let (_f, tracker) = make_tracker();
         tracker.record(3, "openai", 100, 50, Some(0.00003)).unwrap();
-        tracker.record(3, "openai", 200, 100, Some(0.00003)).unwrap();
+        tracker
+            .record(3, "openai", 200, 100, Some(0.00003))
+            .unwrap();
         let stats = tracker.get_agent_stats(3).unwrap();
         assert_eq!(stats.total_tokens, 450);
     }
@@ -180,7 +186,9 @@ mod tests {
     #[test]
     fn get_all_stats_returns_per_agent() {
         let (_f, tracker) = make_tracker();
-        tracker.record(10, "openai", 100, 50, Some(0.00003)).unwrap();
+        tracker
+            .record(10, "openai", 100, 50, Some(0.00003))
+            .unwrap();
         tracker.record(11, "ollama", 200, 100, None).unwrap();
         let all = tracker.get_all_stats().unwrap();
         assert_eq!(all.len(), 2);
@@ -225,8 +233,12 @@ mod tests {
     #[test]
     fn get_7day_trend_includes_recent_records() {
         let (_f, tracker) = make_tracker();
-        tracker.record(30, "openai", 100, 50, Some(0.00003)).unwrap();
-        tracker.record(30, "openai", 200, 100, Some(0.00003)).unwrap();
+        tracker
+            .record(30, "openai", 100, 50, Some(0.00003))
+            .unwrap();
+        tracker
+            .record(30, "openai", 200, 100, Some(0.00003))
+            .unwrap();
         let trend = tracker.get_7day_trend(30).unwrap();
         assert!(!trend.is_empty());
         let total_tokens: u64 = trend.iter().map(|d| d.tokens).sum();

@@ -116,7 +116,9 @@ impl MessageBus {
     }
 
     pub fn with_config(max_queue: usize, retention_secs: u64) -> Self {
-        Self { state: Arc::new(Mutex::new(BusState::new(max_queue, retention_secs))) }
+        Self {
+            state: Arc::new(Mutex::new(BusState::new(max_queue, retention_secs))),
+        }
     }
 
     pub async fn publish(&self, topic: &str, message: BusMessage) -> Result<(), BusError> {
@@ -206,7 +208,10 @@ impl MessageBus {
             .count();
         total_pending += direct_pending;
 
-        BusInspection { topics, pending_messages: total_pending }
+        BusInspection {
+            topics,
+            pending_messages: total_pending,
+        }
     }
 
     pub fn queue_for_offline(
@@ -237,7 +242,11 @@ impl MessageBus {
         let mut state = self.state.lock().unwrap();
         let now = unix_now();
         let queue = state.queue.remove(&target_pid).unwrap_or_default();
-        queue.into_iter().filter(|m| m.expires_at > now).map(|m| m.message).collect()
+        queue
+            .into_iter()
+            .filter(|m| m.expires_at > now)
+            .map(|m| m.message)
+            .collect()
     }
 
     pub fn expire_old_messages(&self, retention_secs: u64) {
@@ -266,7 +275,10 @@ pub fn format_inspection(inspection: &BusInspection) -> String {
         );
     }
     let mut out = String::new();
-    out.push_str(&format!("{:<30} {:>11} {:>13}\n", "TOPIC", "SUBSCRIBERS", "PENDING MSGS"));
+    out.push_str(&format!(
+        "{:<30} {:>11} {:>13}\n",
+        "TOPIC", "SUBSCRIBERS", "PENDING MSGS"
+    ));
     out.push_str(&"-".repeat(56));
     out.push('\n');
     for t in &inspection.topics {
@@ -277,7 +289,10 @@ pub fn format_inspection(inspection: &BusInspection) -> String {
     }
     out.push_str(&"-".repeat(56));
     out.push('\n');
-    out.push_str(&format!("Total pending messages: {}\n", inspection.pending_messages));
+    out.push_str(&format!(
+        "Total pending messages: {}\n",
+        inspection.pending_messages
+    ));
     out
 }
 
@@ -301,13 +316,23 @@ mod tests {
 
     #[test]
     fn wrong_jsonrpc_version_rejected() {
-        let msg = BusMessage { jsonrpc: "1.0".into(), method: "test".into(), params: serde_json::json!({}), id: None };
+        let msg = BusMessage {
+            jsonrpc: "1.0".into(),
+            method: "test".into(),
+            params: serde_json::json!({}),
+            id: None,
+        };
         assert!(matches!(msg.validate(), Err(BusError::InvalidMessage(_))));
     }
 
     #[test]
     fn empty_method_rejected() {
-        let msg = BusMessage { jsonrpc: "2.0".into(), method: "".into(), params: serde_json::json!({}), id: None };
+        let msg = BusMessage {
+            jsonrpc: "2.0".into(),
+            method: "".into(),
+            params: serde_json::json!({}),
+            id: None,
+        };
         assert!(matches!(msg.validate(), Err(BusError::InvalidMessage(_))));
     }
 
@@ -341,7 +366,12 @@ mod tests {
     async fn publish_invalid_message_returns_error() {
         let bus = MessageBus::new();
         let _ = bus.subscribe(1, "t").unwrap();
-        let bad = BusMessage { jsonrpc: "1.0".into(), method: "x".into(), params: serde_json::json!({}), id: None };
+        let bad = BusMessage {
+            jsonrpc: "1.0".into(),
+            method: "x".into(),
+            params: serde_json::json!({}),
+            id: None,
+        };
         assert!(bus.publish("t", bad).await.is_err());
     }
 
@@ -358,7 +388,10 @@ mod tests {
     #[tokio::test]
     async fn send_direct_to_unknown_pid_returns_error() {
         let bus = MessageBus::new();
-        assert!(matches!(bus.send_direct(999, valid_msg("hi")).await, Err(BusError::NoSubscriber(999))));
+        assert!(matches!(
+            bus.send_direct(999, valid_msg("hi")).await,
+            Err(BusError::NoSubscriber(999))
+        ));
     }
 
     #[tokio::test]
@@ -375,13 +408,17 @@ mod tests {
     #[test]
     fn unsubscribe_unknown_topic_returns_error() {
         let bus = MessageBus::new();
-        assert!(matches!(bus.unsubscribe(1, "ghost"), Err(BusError::TopicNotFound(_))));
+        assert!(matches!(
+            bus.unsubscribe(1, "ghost"),
+            Err(BusError::TopicNotFound(_))
+        ));
     }
 
     #[test]
     fn queue_for_offline_stores_message() {
         let bus = MessageBus::new();
-        bus.queue_for_offline(42, Some("alerts"), valid_msg("queued")).unwrap();
+        bus.queue_for_offline(42, Some("alerts"), valid_msg("queued"))
+            .unwrap();
         let msgs = bus.deliver_queued(42);
         assert_eq!(msgs.len(), 1);
         assert_eq!(msgs[0].method, "queued");
@@ -402,7 +439,10 @@ mod tests {
         let bus = MessageBus::with_config(2, 3600);
         bus.queue_for_offline(1, None, valid_msg("a")).unwrap();
         bus.queue_for_offline(1, None, valid_msg("b")).unwrap();
-        assert!(matches!(bus.queue_for_offline(1, None, valid_msg("c")), Err(BusError::QueueFull(2))));
+        assert!(matches!(
+            bus.queue_for_offline(1, None, valid_msg("c")),
+            Err(BusError::QueueFull(2))
+        ));
     }
 
     #[test]
@@ -444,16 +484,21 @@ mod tests {
 
     #[test]
     fn format_inspection_empty() {
-        let info = BusInspection { topics: vec![], pending_messages: 0 };
+        let info = BusInspection {
+            topics: vec![],
+            pending_messages: 0,
+        };
         assert!(format_inspection(&info).contains("No active topics"));
     }
 
     #[test]
     fn format_inspection_with_topics() {
         let info = BusInspection {
-            topics: vec![
-                TopicInfo { name: "research.done".into(), subscriber_count: 3, pending_count: 1 },
-            ],
+            topics: vec![TopicInfo {
+                name: "research.done".into(),
+                subscriber_count: 3,
+                pending_count: 1,
+            }],
             pending_messages: 1,
         };
         let out = format_inspection(&info);

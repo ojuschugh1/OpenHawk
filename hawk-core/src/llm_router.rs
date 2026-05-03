@@ -64,31 +64,48 @@ pub struct LlmRouter {
 impl LlmRouter {
     pub fn new(mut providers: Vec<LlmProvider>) -> Self {
         providers.sort_by_key(|p| p.priority);
-        Self { providers, queued: Mutex::new(VecDeque::new()) }
+        Self {
+            providers,
+            queued: Mutex::new(VecDeque::new()),
+        }
     }
 
-    pub fn route_request(&self, agent_pid: u32, request: LlmRequest, local_only: bool) -> Result<LlmResponse, RouterError> {
-        let candidates: Vec<&LlmProvider> = self.providers.iter()
+    pub fn route_request(
+        &self,
+        agent_pid: u32,
+        request: LlmRequest,
+        local_only: bool,
+    ) -> Result<LlmResponse, RouterError> {
+        let candidates: Vec<&LlmProvider> = self
+            .providers
+            .iter()
             .filter(|p| !local_only || p.is_local)
             .collect();
 
         for provider in &candidates {
             match self.check_availability(provider) {
-                ProviderStatus::Available => {
-                    match self.call_provider(provider, &request) {
-                        Ok(resp) => return Ok(resp),
-                        Err(reason) => {
-                            eprintln!("LLM fallback: provider '{}' failed for agent {}: {}; trying next", provider.name, agent_pid, reason);
-                        }
+                ProviderStatus::Available => match self.call_provider(provider, &request) {
+                    Ok(resp) => return Ok(resp),
+                    Err(reason) => {
+                        eprintln!(
+                            "LLM fallback: provider '{}' failed for agent {}: {}; trying next",
+                            provider.name, agent_pid, reason
+                        );
                     }
-                }
+                },
                 status => {
-                    eprintln!("LLM fallback: provider '{}' status {:?} for agent {}; trying next", provider.name, status, agent_pid);
+                    eprintln!(
+                        "LLM fallback: provider '{}' status {:?} for agent {}; trying next",
+                        provider.name, status, agent_pid
+                    );
                 }
             }
         }
 
-        eprintln!("No LLM provider available for agent {}; request queued", agent_pid);
+        eprintln!(
+            "No LLM provider available for agent {}; request queued",
+            agent_pid
+        );
         self.queued.lock().unwrap().push_back((agent_pid, request));
         Err(RouterError::NoProviderAvailable)
     }
@@ -99,10 +116,13 @@ impl LlmRouter {
     }
 
     pub fn get_providers(&self) -> Vec<LlmProviderStatus> {
-        self.providers.iter().map(|p| LlmProviderStatus {
-            status: self.check_availability(p),
-            provider: p.clone(),
-        }).collect()
+        self.providers
+            .iter()
+            .map(|p| LlmProviderStatus {
+                status: self.check_availability(p),
+                provider: p.clone(),
+            })
+            .collect()
     }
 
     pub fn queued_count(&self) -> usize {
@@ -116,7 +136,11 @@ impl LlmRouter {
         providers.iter().filter(|p| p.is_local).collect()
     }
 
-    fn call_provider(&self, provider: &LlmProvider, request: &LlmRequest) -> Result<LlmResponse, String> {
+    fn call_provider(
+        &self,
+        provider: &LlmProvider,
+        request: &LlmRequest,
+    ) -> Result<LlmResponse, String> {
         let prompt_tokens = (request.prompt.split_whitespace().count() as u32).max(1);
         let completion_tokens = request.max_tokens.unwrap_or(64);
         Ok(LlmResponse {
@@ -142,21 +166,35 @@ pub mod test_support {
     impl MockRouter {
         pub fn new(mut providers: Vec<LlmProvider>) -> Self {
             providers.sort_by_key(|p| p.priority);
-            Self { providers, unavailable: HashSet::new(), queued: Mutex::new(VecDeque::new()) }
+            Self {
+                providers,
+                unavailable: HashSet::new(),
+                queued: Mutex::new(VecDeque::new()),
+            }
         }
 
         pub fn mark_unavailable(&mut self, name: &str) {
             self.unavailable.insert(name.to_string());
         }
 
-        pub fn route_request(&self, agent_pid: u32, request: LlmRequest, local_only: bool) -> Result<LlmResponse, RouterError> {
-            let candidates: Vec<&LlmProvider> = self.providers.iter()
+        pub fn route_request(
+            &self,
+            agent_pid: u32,
+            request: LlmRequest,
+            local_only: bool,
+        ) -> Result<LlmResponse, RouterError> {
+            let candidates: Vec<&LlmProvider> = self
+                .providers
+                .iter()
                 .filter(|p| !local_only || p.is_local)
                 .collect();
 
             for provider in &candidates {
                 if self.unavailable.contains(&provider.name) {
-                    eprintln!("LLM fallback: provider '{}' unavailable for agent {}; trying next", provider.name, agent_pid);
+                    eprintln!(
+                        "LLM fallback: provider '{}' unavailable for agent {}; trying next",
+                        provider.name, agent_pid
+                    );
                     continue;
                 }
                 let prompt_tokens = (request.prompt.split_whitespace().count() as u32).max(1);
@@ -169,7 +207,10 @@ pub mod test_support {
                 });
             }
 
-            eprintln!("No LLM provider available for agent {}; request queued", agent_pid);
+            eprintln!(
+                "No LLM provider available for agent {}; request queued",
+                agent_pid
+            );
             self.queued.lock().unwrap().push_back((agent_pid, request));
             Err(RouterError::NoProviderAvailable)
         }
@@ -179,14 +220,17 @@ pub mod test_support {
         }
 
         pub fn get_providers(&self) -> Vec<LlmProviderStatus> {
-            self.providers.iter().map(|p| LlmProviderStatus {
-                status: if self.unavailable.contains(&p.name) {
-                    ProviderStatus::Unavailable
-                } else {
-                    ProviderStatus::Available
-                },
-                provider: p.clone(),
-            }).collect()
+            self.providers
+                .iter()
+                .map(|p| LlmProviderStatus {
+                    status: if self.unavailable.contains(&p.name) {
+                        ProviderStatus::Unavailable
+                    } else {
+                        ProviderStatus::Available
+                    },
+                    provider: p.clone(),
+                })
+                .collect()
         }
     }
 }
@@ -198,13 +242,27 @@ mod tests {
 
     fn make_providers() -> Vec<LlmProvider> {
         vec![
-            LlmProvider { name: "openai".into(), endpoint: "https://api.openai.com/v1".into(), priority: 1, is_local: false },
-            LlmProvider { name: "ollama".into(), endpoint: "http://localhost:11434".into(), priority: 2, is_local: true },
+            LlmProvider {
+                name: "openai".into(),
+                endpoint: "https://api.openai.com/v1".into(),
+                priority: 1,
+                is_local: false,
+            },
+            LlmProvider {
+                name: "ollama".into(),
+                endpoint: "http://localhost:11434".into(),
+                priority: 2,
+                is_local: true,
+            },
         ]
     }
 
     fn req(prompt: &str) -> LlmRequest {
-        LlmRequest { prompt: prompt.to_string(), max_tokens: None, model: None }
+        LlmRequest {
+            prompt: prompt.to_string(),
+            max_tokens: None,
+            model: None,
+        }
     }
 
     #[test]
@@ -217,8 +275,18 @@ mod tests {
     #[test]
     fn provider_list_sorted_by_priority() {
         let providers = vec![
-            LlmProvider { name: "ollama".into(), endpoint: "http://localhost:11434".into(), priority: 2, is_local: true },
-            LlmProvider { name: "openai".into(), endpoint: "https://api.openai.com/v1".into(), priority: 1, is_local: false },
+            LlmProvider {
+                name: "ollama".into(),
+                endpoint: "http://localhost:11434".into(),
+                priority: 2,
+                is_local: true,
+            },
+            LlmProvider {
+                name: "openai".into(),
+                endpoint: "https://api.openai.com/v1".into(),
+                priority: 1,
+                is_local: false,
+            },
         ];
         let router = MockRouter::new(providers);
         let resp = router.route_request(1, req("test"), false).unwrap();
@@ -236,7 +304,9 @@ mod tests {
     #[test]
     fn response_contains_prompt_text() {
         let router = MockRouter::new(make_providers());
-        let resp = router.route_request(42, req("what is rust"), false).unwrap();
+        let resp = router
+            .route_request(42, req("what is rust"), false)
+            .unwrap();
         assert!(resp.text.contains("what is rust"));
     }
 
@@ -249,9 +319,12 @@ mod tests {
 
     #[test]
     fn local_only_fails_when_no_local_provider() {
-        let providers = vec![
-            LlmProvider { name: "openai".into(), endpoint: "https://api.openai.com/v1".into(), priority: 1, is_local: false },
-        ];
+        let providers = vec![LlmProvider {
+            name: "openai".into(),
+            endpoint: "https://api.openai.com/v1".into(),
+            priority: 1,
+            is_local: false,
+        }];
         let router = MockRouter::new(providers);
         let err = router.route_request(1, req("private"), true).unwrap_err();
         assert_eq!(err, RouterError::NoProviderAvailable);
@@ -283,8 +356,14 @@ mod tests {
         let mut router = MockRouter::new(make_providers());
         router.mark_unavailable("openai");
         let statuses = router.get_providers();
-        let openai = statuses.iter().find(|s| s.provider.name == "openai").unwrap();
-        let ollama = statuses.iter().find(|s| s.provider.name == "ollama").unwrap();
+        let openai = statuses
+            .iter()
+            .find(|s| s.provider.name == "openai")
+            .unwrap();
+        let ollama = statuses
+            .iter()
+            .find(|s| s.provider.name == "ollama")
+            .unwrap();
         assert_eq!(openai.status, ProviderStatus::Unavailable);
         assert_eq!(ollama.status, ProviderStatus::Available);
     }
@@ -322,8 +401,18 @@ mod tests {
     #[test]
     fn filter_for_air_gap_empty_when_no_local_providers() {
         let providers = vec![
-            LlmProvider { name: "openai".into(), endpoint: "https://api.openai.com/v1".into(), priority: 1, is_local: false },
-            LlmProvider { name: "anthropic".into(), endpoint: "https://api.anthropic.com".into(), priority: 2, is_local: false },
+            LlmProvider {
+                name: "openai".into(),
+                endpoint: "https://api.openai.com/v1".into(),
+                priority: 1,
+                is_local: false,
+            },
+            LlmProvider {
+                name: "anthropic".into(),
+                endpoint: "https://api.anthropic.com".into(),
+                priority: 2,
+                is_local: false,
+            },
         ];
         let filtered = LlmRouter::filter_for_air_gap(&providers, true);
         assert!(filtered.is_empty());

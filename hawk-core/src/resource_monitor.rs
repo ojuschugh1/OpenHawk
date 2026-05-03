@@ -23,7 +23,11 @@ pub struct ResourceSnapshot {
 
 #[derive(Debug)]
 pub enum ResourceEvent {
-    MemoryExceeded { pid: ProcessId, memory_bytes: u64, limit_bytes: u64 },
+    MemoryExceeded {
+        pid: ProcessId,
+        memory_bytes: u64,
+        limit_bytes: u64,
+    },
 }
 
 pub struct ResourceMonitor {
@@ -115,7 +119,14 @@ mod tests {
     #[test]
     fn test_register_and_deregister() {
         let monitor = ResourceMonitor::new();
-        monitor.register(1234, ResourceLimits { cpu_percent: 25, memory_mb: 512, max_open_fds: 64 });
+        monitor.register(
+            1234,
+            ResourceLimits {
+                cpu_percent: 25,
+                memory_mb: 512,
+                max_open_fds: 64,
+            },
+        );
         assert!(monitor.limits.lock().unwrap().contains_key(&1234));
         monitor.deregister(1234);
         assert!(!monitor.limits.lock().unwrap().contains_key(&1234));
@@ -123,7 +134,11 @@ mod tests {
 
     #[test]
     fn test_memory_limit_bytes_calculation() {
-        let limits = ResourceLimits { cpu_percent: 10, memory_mb: 512, max_open_fds: 64 };
+        let limits = ResourceLimits {
+            cpu_percent: 10,
+            memory_mb: 512,
+            max_open_fds: 64,
+        };
         assert_eq!(limits.memory_mb * 1024 * 1024, 512 * 1024 * 1024);
     }
 
@@ -141,7 +156,11 @@ mod tests {
 
         let event = monitor.event_rx.lock().unwrap().try_recv().unwrap();
         match event {
-            ResourceEvent::MemoryExceeded { pid, memory_bytes, limit_bytes } => {
+            ResourceEvent::MemoryExceeded {
+                pid,
+                memory_bytes,
+                limit_bytes,
+            } => {
                 assert_eq!(pid, 42);
                 assert!(memory_bytes > limit_bytes);
             }

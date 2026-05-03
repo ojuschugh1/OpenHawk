@@ -36,13 +36,16 @@ impl DaemonContext {
     pub fn initialize(db_path: PathBuf) -> Result<Self, DaemonError> {
         let platform = PlatformConfig::detect();
 
-        let layered = LayeredConfig::load(None)
-            .map_err(|e| DaemonError::Config(e.to_string()))?;
+        let layered = LayeredConfig::load(None).map_err(|e| DaemonError::Config(e.to_string()))?;
         let config = layered.merged();
 
         init_database(&db_path).map_err(|e| DaemonError::Database(e.to_string()))?;
 
-        Ok(Self { db_path, config, platform })
+        Ok(Self {
+            db_path,
+            config,
+            platform,
+        })
     }
 
     pub fn db(&self) -> Result<Connection, DaemonError> {
@@ -71,10 +74,13 @@ mod tests {
         let f = NamedTempFile::new().unwrap();
         let ctx = DaemonContext::initialize(f.path().to_path_buf()).unwrap();
         let conn = ctx.db().unwrap();
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
-            [], |row| row.get(0),
-        ).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert!(count > 0);
     }
 

@@ -45,7 +45,9 @@ impl PermissionGuard {
                 reason: format!("filesystem path '{}' not in manifest allowlist", path_str),
             }
         } else {
-            PermissionResult::Denied { reason: format!("no manifest registered for pid {pid}") }
+            PermissionResult::Denied {
+                reason: format!("no manifest registered for pid {pid}"),
+            }
         }
     }
 
@@ -64,7 +66,9 @@ impl PermissionGuard {
                 reason: format!("network endpoint '{}' not in manifest allowlist", endpoint),
             }
         } else {
-            PermissionResult::Denied { reason: format!("no manifest registered for pid {pid}") }
+            PermissionResult::Denied {
+                reason: format!("no manifest registered for pid {pid}"),
+            }
         }
     }
 
@@ -82,7 +86,9 @@ impl PermissionGuard {
                 reason: format!("command '{}' not in manifest allowlist", command),
             }
         } else {
-            PermissionResult::Denied { reason: format!("no manifest registered for pid {pid}") }
+            PermissionResult::Denied {
+                reason: format!("no manifest registered for pid {pid}"),
+            }
         }
     }
 
@@ -99,7 +105,9 @@ impl PermissionGuard {
                 reason: format!("secret key '{}' not in manifest secrets list", key),
             }
         } else {
-            PermissionResult::Denied { reason: format!("no manifest registered for pid {pid}") }
+            PermissionResult::Denied {
+                reason: format!("no manifest registered for pid {pid}"),
+            }
         }
     }
 
@@ -141,7 +149,9 @@ fn glob_match(pattern: &str, value: &str) -> bool {
 mod tests {
     use super::*;
     use crate::db::SCHEMA;
-    use crate::manifest::{AgentInfo, Capabilities, LlmConfig, Permissions, Resources, TalonRequirements};
+    use crate::manifest::{
+        AgentInfo, Capabilities, LlmConfig, Permissions, Resources, TalonRequirements,
+    };
 
     fn make_guard() -> PermissionGuard {
         let conn = Connection::open_in_memory().unwrap();
@@ -175,56 +185,80 @@ mod tests {
     fn test_fs_access_allowed() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_fs_access(1, Path::new("/tmp/foo.txt")), PermissionResult::Allowed));
+        assert!(matches!(
+            guard.check_fs_access(1, Path::new("/tmp/foo.txt")),
+            PermissionResult::Allowed
+        ));
     }
 
     #[test]
     fn test_fs_access_denied() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_fs_access(1, Path::new("/etc/passwd")), PermissionResult::Denied { .. }));
+        assert!(matches!(
+            guard.check_fs_access(1, Path::new("/etc/passwd")),
+            PermissionResult::Denied { .. }
+        ));
     }
 
     #[test]
     fn test_network_allowed() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_network(1, "https://api.openai.com/v1/chat"), PermissionResult::Allowed));
+        assert!(matches!(
+            guard.check_network(1, "https://api.openai.com/v1/chat"),
+            PermissionResult::Allowed
+        ));
     }
 
     #[test]
     fn test_network_denied() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_network(1, "https://evil.example.com"), PermissionResult::Denied { .. }));
+        assert!(matches!(
+            guard.check_network(1, "https://evil.example.com"),
+            PermissionResult::Denied { .. }
+        ));
     }
 
     #[test]
     fn test_command_allowed() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_command(1, "curl https://example.com"), PermissionResult::Allowed));
+        assert!(matches!(
+            guard.check_command(1, "curl https://example.com"),
+            PermissionResult::Allowed
+        ));
     }
 
     #[test]
     fn test_command_denied() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_command(1, "rm -rf /"), PermissionResult::Denied { .. }));
+        assert!(matches!(
+            guard.check_command(1, "rm -rf /"),
+            PermissionResult::Denied { .. }
+        ));
     }
 
     #[test]
     fn test_secret_allowed() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_secret(1, "OPENAI_API_KEY"), PermissionResult::Allowed));
+        assert!(matches!(
+            guard.check_secret(1, "OPENAI_API_KEY"),
+            PermissionResult::Allowed
+        ));
     }
 
     #[test]
     fn test_secret_denied() {
         let mut guard = make_guard();
         guard.register(1, test_manifest());
-        assert!(matches!(guard.check_secret(1, "AWS_SECRET_KEY"), PermissionResult::Denied { .. }));
+        assert!(matches!(
+            guard.check_secret(1, "AWS_SECRET_KEY"),
+            PermissionResult::Denied { .. }
+        ));
     }
 
     #[test]
@@ -234,16 +268,31 @@ mod tests {
         guard.trust("test-agent", "session-1".to_string());
 
         assert!(guard.is_trusted(1));
-        assert!(matches!(guard.check_fs_access(1, Path::new("/etc/passwd")), PermissionResult::Allowed));
-        assert!(matches!(guard.check_network(1, "https://evil.example.com"), PermissionResult::Allowed));
-        assert!(matches!(guard.check_command(1, "rm -rf /"), PermissionResult::Allowed));
-        assert!(matches!(guard.check_secret(1, "UNKNOWN_KEY"), PermissionResult::Allowed));
+        assert!(matches!(
+            guard.check_fs_access(1, Path::new("/etc/passwd")),
+            PermissionResult::Allowed
+        ));
+        assert!(matches!(
+            guard.check_network(1, "https://evil.example.com"),
+            PermissionResult::Allowed
+        ));
+        assert!(matches!(
+            guard.check_command(1, "rm -rf /"),
+            PermissionResult::Allowed
+        ));
+        assert!(matches!(
+            guard.check_secret(1, "UNKNOWN_KEY"),
+            PermissionResult::Allowed
+        ));
     }
 
     #[test]
     fn test_no_manifest_returns_denied() {
         let guard = make_guard();
-        assert!(matches!(guard.check_fs_access(99, Path::new("/tmp/x")), PermissionResult::Denied { .. }));
+        assert!(matches!(
+            guard.check_fs_access(99, Path::new("/tmp/x")),
+            PermissionResult::Denied { .. }
+        ));
     }
 
     #[test]

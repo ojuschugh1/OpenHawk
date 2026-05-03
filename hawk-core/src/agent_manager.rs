@@ -38,23 +38,25 @@ impl AgentManager {
 
     pub async fn spawn(&self, manifest: AgentManifest) -> Result<ProcessId> {
         if manifest.info.entry_command.trim().is_empty() {
-            return Err(HawkError::InvalidManifest("entry_command must not be empty".to_string()));
+            return Err(HawkError::InvalidManifest(
+                "entry_command must not be empty".to_string(),
+            ));
         }
 
         let session_id = Uuid::new_v4().to_string();
         let parts: Vec<&str> = manifest.info.entry_command.split_whitespace().collect();
-        let (program, args) = parts.split_first().ok_or_else(|| {
-            HawkError::InvalidManifest("entry_command is empty".to_string())
-        })?;
+        let (program, args) = parts
+            .split_first()
+            .ok_or_else(|| HawkError::InvalidManifest("entry_command is empty".to_string()))?;
 
         let child = Command::new(program)
             .args(args)
             .spawn()
             .map_err(HawkError::Io)?;
 
-        let pid = child.id().ok_or_else(|| {
-            HawkError::Io(std::io::Error::new(std::io::ErrorKind::Other, "could not get child PID"))
-        })?;
+        let pid = child
+            .id()
+            .ok_or_else(|| HawkError::Io(std::io::Error::other("could not get child PID")))?;
 
         let record = AgentRecord {
             pid,
@@ -76,7 +78,13 @@ impl AgentManager {
             db.execute(
                 "INSERT INTO agents (pid, name, state, manifest_path, started_at, session_id) \
                  VALUES (?1, ?2, ?3, ?4, datetime('now'), ?5)",
-                params![pid, manifest.info.name, "Running", manifest.info.entry_command, session_id],
+                params![
+                    pid,
+                    manifest.info.name,
+                    "Running",
+                    manifest.info.entry_command,
+                    session_id
+                ],
             )
             .map_err(|e| HawkError::Database(e.to_string()))?;
         }
@@ -112,18 +120,41 @@ impl AgentManager {
         }
 
         if !graceful {
-            let mut agents = self.agents.lock().unwrap();
-            if let Some((child, _)) = agents.get_mut(&pid) {
-                child.kill().await.map_err(HawkError::Io)?;
+            // Extract the child handle before awaiting kill to avoid holding
+            // the MutexGuard across an await point.
+            let child_opt = {
+                let mut agents = self.agents.lock().unwrap();
+                agents.get_mut(&pid).map(|(child, _)| {
+                    // We can't move child out, so just kill synchronously via the handle
+                    // by taking a raw pid and using nix directly on unix.
+                    child.id()
+                })
+            };
+            if let Some(Some(raw_pid)) = child_opt {
+                #[cfg(target_family = "unix")]
+                {
+                    use nix::sys::signal::{kill, Signal};
+                    use nix::unistd::Pid as NixPid;
+                    let _ = kill(NixPid::from_raw(raw_pid as i32), Signal::SIGKILL);
+                }
+                #[cfg(not(target_family = "unix"))]
+                {
+                    let mut agents = self.agents.lock().unwrap();
+                    if let Some((child, _)) = agents.get_mut(&pid) {
+                        let _ = child.start_kill();
+                    }
+                }
             }
-            drop(agents);
             self.log_forced_termination(pid)?;
         }
 
         self.agents.lock().unwrap().remove(&pid);
         self.update_state_db(pid, LifecycleState::Stopped)?;
 
-        Ok(StopResult { pid, forced: !graceful })
+        Ok(StopResult {
+            pid,
+            forced: !graceful,
+        })
     }
 
     pub fn pause(&self, pid: ProcessId) -> Result<()> {
@@ -168,16 +199,24 @@ impl AgentManager {
     }
 
     pub fn get_state(&self, pid: ProcessId) -> Option<LifecycleState> {
-        self.agents.lock().unwrap().get(&pid).map(|(_, rec)| rec.state.clone())
+        self.agents
+            .lock()
+            .unwrap()
+            .get(&pid)
+            .map(|(_, rec)| rec.state.clone())
     }
 
     /// Check if agent has exceeded its token budget; if so, pause it and return true.
     pub fn enforce_budget(&self, pid: ProcessId) -> Result<bool> {
         let budget = {
             let agents = self.agents.lock().unwrap();
-            agents.get(&pid).map(|(_, rec)| rec.manifest.llm.budget_tokens)
+            agents
+                .get(&pid)
+                .map(|(_, rec)| rec.manifest.llm.budget_tokens)
         };
-        let Some(budget) = budget else { return Ok(false) };
+        let Some(budget) = budget else {
+            return Ok(false);
+        };
         if budget == 0 {
             return Ok(false);
         }
@@ -219,7 +258,10 @@ impl AgentManager {
         self.db
             .lock()
             .unwrap()
-            .execute("UPDATE agents SET state = ?1 WHERE pid = ?2", params![state_str, pid])
+            .execute(
+                "UPDATE agents SET state = ?1 WHERE pid = ?2",
+                params![state_str, pid],
+            )
             .map_err(|e| HawkError::Database(e.to_string()))?;
         Ok(())
     }
@@ -263,7 +305,7 @@ fn send_term(pid: ProcessId) -> Result<()> {
     use nix::sys::signal::{kill, Signal};
     use nix::unistd::Pid;
     kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
-        .map_err(|e| HawkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
+        .map_err(|e| HawkError::Io(std::io::Error::other(e.to_string())))
 }
 
 #[cfg(target_family = "unix")]
@@ -271,7 +313,7 @@ fn send_stop(pid: ProcessId) -> Result<()> {
     use nix::sys::signal::{kill, Signal};
     use nix::unistd::Pid;
     kill(Pid::from_raw(pid as i32), Signal::SIGSTOP)
-        .map_err(|e| HawkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
+        .map_err(|e| HawkError::Io(std::io::Error::other(e.to_string())))
 }
 
 #[cfg(target_family = "unix")]
@@ -279,15 +321,21 @@ fn send_cont(pid: ProcessId) -> Result<()> {
     use nix::sys::signal::{kill, Signal};
     use nix::unistd::Pid;
     kill(Pid::from_raw(pid as i32), Signal::SIGCONT)
-        .map_err(|e| HawkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
+        .map_err(|e| HawkError::Io(std::io::Error::other(e.to_string())))
 }
 
 #[cfg(not(target_family = "unix"))]
-fn send_term(_pid: ProcessId) -> Result<()> { Ok(()) }
+fn send_term(_pid: ProcessId) -> Result<()> {
+    Ok(())
+}
 #[cfg(not(target_family = "unix"))]
-fn send_stop(_pid: ProcessId) -> Result<()> { Ok(()) }
+fn send_stop(_pid: ProcessId) -> Result<()> {
+    Ok(())
+}
 #[cfg(not(target_family = "unix"))]
-fn send_cont(_pid: ProcessId) -> Result<()> { Ok(()) }
+fn send_cont(_pid: ProcessId) -> Result<()> {
+    Ok(())
+}
 
 pub fn snapshot_dir() -> PathBuf {
     dirs_next::data_local_dir()

@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -91,7 +91,10 @@ fn is_apfs(working_dir: &Path) -> bool {
     }
     let buf = unsafe { buf.assume_init() };
     let name_bytes = &buf.f_fstypename;
-    let end = name_bytes.iter().position(|&b| b == 0).unwrap_or(name_bytes.len());
+    let end = name_bytes
+        .iter()
+        .position(|&b| b == 0)
+        .unwrap_or(name_bytes.len());
     let fs_name = std::str::from_utf8(&name_bytes[..end]).unwrap_or("");
     fs_name == "apfs"
 }
@@ -191,7 +194,11 @@ impl SnapshotEngine {
         if strategy == SnapshotStrategy::FileCopyFallback {
             eprintln!("hawk-savepoint: WARNING — COW not available, falling back to file-copy");
         }
-        Self { db, snapshot_base_dir, strategy }
+        Self {
+            db,
+            snapshot_base_dir,
+            strategy,
+        }
     }
 
     pub fn create_snapshot(
@@ -286,9 +293,7 @@ impl SnapshotEngine {
         {
             let mut stmt = self
                 .db
-                .prepare(
-                    "SELECT file_path, hash FROM snapshot_files WHERE snapshot_id = ?1",
-                )
+                .prepare("SELECT file_path, hash FROM snapshot_files WHERE snapshot_id = ?1")
                 .map_err(|e| HawkError::Database(e.to_string()))?;
             let rows = stmt
                 .query_map(params![snapshot_id], |r| {
@@ -303,7 +308,7 @@ impl SnapshotEngine {
 
         // Restore every file from the snapshot directory
         let mut files_restored: u32 = 0;
-        for (rel_path, _) in &snap_files {
+        for rel_path in snap_files.keys() {
             let src = snap_dir.join(rel_path);
             let dest = working_dir.join(rel_path);
             if let Some(parent) = dest.parent() {
@@ -333,7 +338,10 @@ impl SnapshotEngine {
             }
         }
 
-        Ok(RollbackResult { snapshot_id: snapshot_id.to_owned(), files_restored })
+        Ok(RollbackResult {
+            snapshot_id: snapshot_id.to_owned(),
+            files_restored,
+        })
     }
 
     pub fn rollback_latest(&self, agent_pid: u32) -> Result<RollbackResult, HawkError> {
@@ -345,9 +353,7 @@ impl SnapshotEngine {
                 params![agent_pid],
                 |r| r.get(0),
             )
-            .map_err(|_| {
-                HawkError::NotFound(format!("no snapshots for agent {agent_pid}"))
-            })?;
+            .map_err(|_| HawkError::NotFound(format!("no snapshots for agent {agent_pid}")))?;
         self.rollback(&snapshot_id)
     }
 
@@ -369,9 +375,7 @@ impl SnapshotEngine {
         {
             let mut stmt = self
                 .db
-                .prepare(
-                    "SELECT file_path, hash FROM snapshot_files WHERE snapshot_id = ?1",
-                )
+                .prepare("SELECT file_path, hash FROM snapshot_files WHERE snapshot_id = ?1")
                 .map_err(|e| HawkError::Database(e.to_string()))?;
             let rows = stmt
                 .query_map(params![snapshot_id], |r| {
@@ -529,14 +533,15 @@ fn hash_file(path: &Path) -> Result<(String, u64), HawkError> {
 fn copy_file(src: &Path, dest: &Path, strategy: &SnapshotStrategy) -> Result<(), HawkError> {
     match strategy {
         SnapshotStrategy::FileCopyFallback => {
-            eprintln!("hawk-savepoint: WARNING — file-copy fallback for {}", src.display());
-            fs::copy(src, dest)
-                .map_err(|e| HawkError::Snapshot(format!("file copy: {e}")))?;
+            eprintln!(
+                "hawk-savepoint: WARNING — file-copy fallback for {}",
+                src.display()
+            );
+            fs::copy(src, dest).map_err(|e| HawkError::Snapshot(format!("file copy: {e}")))?;
         }
         // COW variants also use std::fs::copy for now; reflink-copy can be wired in later
         SnapshotStrategy::ApfsReflink | SnapshotStrategy::BtrfsCow => {
-            fs::copy(src, dest)
-                .map_err(|e| HawkError::Snapshot(format!("file copy: {e}")))?;
+            fs::copy(src, dest).map_err(|e| HawkError::Snapshot(format!("file copy: {e}")))?;
         }
     }
     Ok(())
@@ -728,7 +733,10 @@ mod tests {
         // a.txt should be restored
         assert_eq!(fs::read(work.path().join("a.txt")).unwrap(), b"original");
         // b.txt should still be there
-        assert_eq!(fs::read(work.path().join("b.txt")).unwrap(), b"also original");
+        assert_eq!(
+            fs::read(work.path().join("b.txt")).unwrap(),
+            b"also original"
+        );
         // c.txt was added after snapshot — should be removed
         assert!(!work.path().join("c.txt").exists());
     }
@@ -889,9 +897,15 @@ mod tests {
             )
             .unwrap();
 
-        engine.create_snapshot(work.path(), 11, "agent11", "s6").unwrap();
-        engine.create_snapshot(work.path(), 22, "agent22", "s6").unwrap();
-        engine.create_snapshot(work.path(), 11, "agent11-2", "s6").unwrap();
+        engine
+            .create_snapshot(work.path(), 11, "agent11", "s6")
+            .unwrap();
+        engine
+            .create_snapshot(work.path(), 22, "agent22", "s6")
+            .unwrap();
+        engine
+            .create_snapshot(work.path(), 11, "agent11-2", "s6")
+            .unwrap();
 
         let for_11 = engine.list_snapshots(Some(11)).unwrap();
         assert_eq!(for_11.len(), 2);
@@ -915,8 +929,12 @@ mod tests {
             )
             .unwrap();
 
-        engine.create_snapshot(work.path(), 5, "first", "s7").unwrap();
-        engine.create_snapshot(work.path(), 5, "second", "s7").unwrap();
+        engine
+            .create_snapshot(work.path(), 5, "first", "s7")
+            .unwrap();
+        engine
+            .create_snapshot(work.path(), 5, "second", "s7")
+            .unwrap();
 
         let snaps = engine.list_snapshots(Some(5)).unwrap();
         assert_eq!(snaps.len(), 2);

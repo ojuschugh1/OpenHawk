@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::error::HawkError;
+use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, HawkError>;
 
@@ -51,7 +51,9 @@ pub struct PrivacyConfig {
 
 impl Default for PrivacyConfig {
     fn default() -> Self {
-        Self { mode: "standard".to_string() }
+        Self {
+            mode: "standard".to_string(),
+        }
     }
 }
 
@@ -86,7 +88,10 @@ pub struct SavepointConfig {
 
 impl Default for SavepointConfig {
     fn default() -> Self {
-        Self { auto_snapshot: true, max_snapshots_per_agent: 50 }
+        Self {
+            auto_snapshot: true,
+            max_snapshots_per_agent: 50,
+        }
     }
 }
 
@@ -98,7 +103,10 @@ pub struct BusConfig {
 
 impl Default for BusConfig {
     fn default() -> Self {
-        Self { message_retention_seconds: 3600, max_queue_size: 10000 }
+        Self {
+            message_retention_seconds: 3600,
+            max_queue_size: 10000,
+        }
     }
 }
 
@@ -110,7 +118,10 @@ pub struct SyncConfig {
 
 impl Default for SyncConfig {
     fn default() -> Self {
-        Self { enabled: false, conflict_strategy: "last-writer-wins".to_string() }
+        Self {
+            enabled: false,
+            conflict_strategy: "last-writer-wins".to_string(),
+        }
     }
 }
 
@@ -122,7 +133,10 @@ pub struct CompressConfig {
 
 impl Default for CompressConfig {
     fn default() -> Self {
-        Self { token_threshold: 4000, cache_max_entries: 1000 }
+        Self {
+            token_threshold: 4000,
+            cache_max_entries: 1000,
+        }
     }
 }
 
@@ -134,15 +148,18 @@ pub struct HealingConfig {
 
 impl Default for HealingConfig {
     fn default() -> Self {
-        Self { max_retries: 3, enabled: true }
+        Self {
+            max_retries: 3,
+            enabled: true,
+        }
     }
 }
 
 // ── Parse / serialize ─────────────────────────────────────────────────────────
 
 pub fn parse(toml_str: &str) -> Result<HawkConfig> {
-    let config: HawkConfig = toml::from_str(toml_str)
-        .map_err(|e| HawkError::Config(format!("parse error: {e}")))?;
+    let config: HawkConfig =
+        toml::from_str(toml_str).map_err(|e| HawkError::Config(format!("parse error: {e}")))?;
     validate(&config)?;
     Ok(config)
 }
@@ -289,8 +306,14 @@ pattern_retention_days = 90
 "#;
         let err = parse(toml).unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("log_level"), "error should mention log_level: {msg}");
-        assert!(msg.contains("verbose"), "error should include the bad value: {msg}");
+        assert!(
+            msg.contains("log_level"),
+            "error should mention log_level: {msg}"
+        );
+        assert!(
+            msg.contains("verbose"),
+            "error should include the bad value: {msg}"
+        );
     }
 
     #[test]
@@ -302,7 +325,10 @@ mode = "cloud-only"
         let err = parse(toml).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("mode"), "error should mention mode: {msg}");
-        assert!(msg.contains("cloud-only"), "error should include the bad value: {msg}");
+        assert!(
+            msg.contains("cloud-only"),
+            "error should include the bad value: {msg}"
+        );
     }
 
     #[test]

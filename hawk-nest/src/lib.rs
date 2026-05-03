@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use chrono::Utc;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -71,8 +71,12 @@ pub struct InstalledPackage {
 
 fn is_valid_semver(version: &str) -> bool {
     let parts: Vec<&str> = version.split('.').collect();
-    if parts.len() != 3 { return false; }
-    parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    if parts.len() != 3 {
+        return false;
+    }
+    parts
+        .iter()
+        .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn expected_signature(name: &str, version: &str) -> String {
@@ -142,14 +146,28 @@ impl NestClient {
 
         let mut results = Vec::new();
         for row in rows {
-            let (name, description, author, version, download_count, pkg_type_str, compatibility) = row?;
+            let (name, description, author, version, download_count, pkg_type_str, compatibility) =
+                row?;
             let package_type = PackageType::from_str(&pkg_type_str).unwrap_or(PackageType::Flight);
-            results.push(PackageListing { name, description, author, version, download_count, package_type, compatibility });
+            results.push(PackageListing {
+                name,
+                description,
+                author,
+                version,
+                download_count,
+                package_type,
+                compatibility,
+            });
         }
         Ok(results)
     }
 
-    pub fn install(&self, package_name: &str, listing: &PackageListing, signature: &str) -> Result<(), NestError> {
+    pub fn install(
+        &self,
+        package_name: &str,
+        listing: &PackageListing,
+        signature: &str,
+    ) -> Result<(), NestError> {
         if !verify_signature(package_name, &listing.version, signature) {
             return Err(NestError::InvalidSignature(package_name.to_string()));
         }
@@ -176,7 +194,9 @@ impl NestClient {
     pub fn publish(&self, package_path: &Path) -> Result<(), NestError> {
         let manifest_path = package_path.join("Agent_Manifest.toml");
         if !manifest_path.exists() {
-            return Err(NestError::InvalidPackage("Agent_Manifest.toml not found at package root".to_string()));
+            return Err(NestError::InvalidPackage(
+                "Agent_Manifest.toml not found at package root".to_string(),
+            ));
         }
 
         let manifest_src = std::fs::read_to_string(&manifest_path)?;
@@ -214,9 +234,18 @@ impl NestClient {
         if let Ok(rows) = rows {
             for row in rows.flatten() {
                 let (name, version, pkg_type_str, signature, installed_at, caps_json) = row;
-                let package_type = PackageType::from_str(&pkg_type_str).unwrap_or(PackageType::Flight);
-                let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
-                packages.push(InstalledPackage { name, version, package_type, signature, installed_at, capabilities });
+                let package_type =
+                    PackageType::from_str(&pkg_type_str).unwrap_or(PackageType::Flight);
+                let capabilities: Vec<String> =
+                    serde_json::from_str(&caps_json).unwrap_or_default();
+                packages.push(InstalledPackage {
+                    name,
+                    version,
+                    package_type,
+                    signature,
+                    installed_at,
+                    capabilities,
+                });
             }
         }
         packages
@@ -227,7 +256,15 @@ impl NestClient {
             "INSERT OR REPLACE INTO package_index \
              (name, description, author, version, download_count, package_type, compatibility) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![listing.name, listing.description, listing.author, listing.version, listing.download_count, listing.package_type.as_str(), listing.compatibility],
+            params![
+                listing.name,
+                listing.description,
+                listing.author,
+                listing.version,
+                listing.download_count,
+                listing.package_type.as_str(),
+                listing.compatibility
+            ],
         )?;
         Ok(())
     }
@@ -278,7 +315,9 @@ mod tests {
     fn search_returns_matching_packages() {
         let client = in_memory_client();
         client.add_to_index(sample_listing("web-scraper")).unwrap();
-        client.add_to_index(sample_listing("data-pipeline")).unwrap();
+        client
+            .add_to_index(sample_listing("data-pipeline"))
+            .unwrap();
         let results = client.search("web").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "web-scraper");
@@ -324,7 +363,9 @@ mod tests {
     fn install_invalid_signature_rejected() {
         let client = in_memory_client();
         let listing = sample_listing("my-flight");
-        let err = client.install("my-flight", &listing, "bad-sig").unwrap_err();
+        let err = client
+            .install("my-flight", &listing, "bad-sig")
+            .unwrap_err();
         assert!(matches!(err, NestError::InvalidSignature(_)));
     }
 
@@ -350,7 +391,11 @@ mod tests {
     #[test]
     fn publish_valid_package_succeeds() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("Agent_Manifest.toml"), "[agent]\nname = \"test\"\nversion = \"1.2.3\"\n").unwrap();
+        fs::write(
+            dir.path().join("Agent_Manifest.toml"),
+            "[agent]\nname = \"test\"\nversion = \"1.2.3\"\n",
+        )
+        .unwrap();
         let client = in_memory_client();
         client.publish(dir.path()).unwrap();
     }
@@ -367,7 +412,11 @@ mod tests {
     #[test]
     fn publish_invalid_semver_rejected() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("Agent_Manifest.toml"), "[agent]\nname = \"test\"\nversion = \"1.0\"\n").unwrap();
+        fs::write(
+            dir.path().join("Agent_Manifest.toml"),
+            "[agent]\nname = \"test\"\nversion = \"1.0\"\n",
+        )
+        .unwrap();
         let client = in_memory_client();
         let err = client.publish(dir.path()).unwrap_err();
         assert!(matches!(err, NestError::InvalidVersion(_)));
@@ -376,7 +425,11 @@ mod tests {
     #[test]
     fn publish_missing_version_field_rejected() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("Agent_Manifest.toml"), "[agent]\nname = \"test\"\n").unwrap();
+        fs::write(
+            dir.path().join("Agent_Manifest.toml"),
+            "[agent]\nname = \"test\"\n",
+        )
+        .unwrap();
         let client = in_memory_client();
         let err = client.publish(dir.path()).unwrap_err();
         assert!(matches!(err, NestError::InvalidPackage(_)));
@@ -385,7 +438,11 @@ mod tests {
     #[test]
     fn publish_non_numeric_semver_rejected() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("Agent_Manifest.toml"), "[agent]\nname = \"test\"\nversion = \"1.0.0-beta\"\n").unwrap();
+        fs::write(
+            dir.path().join("Agent_Manifest.toml"),
+            "[agent]\nname = \"test\"\nversion = \"1.0.0-beta\"\n",
+        )
+        .unwrap();
         let client = in_memory_client();
         let err = client.publish(dir.path()).unwrap_err();
         assert!(matches!(err, NestError::InvalidVersion(_)));

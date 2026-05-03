@@ -45,7 +45,13 @@ impl PlatformConfig {
         let ipc = detect_ipc(&os);
         let snapshot_strategy = detect_snapshot_strategy(&os);
         let keychain_available = detect_keychain(&os);
-        PlatformConfig { os, arch, ipc, snapshot_strategy, keychain_available }
+        PlatformConfig {
+            os,
+            arch,
+            ipc,
+            snapshot_strategy,
+            keychain_available,
+        }
     }
 }
 
@@ -158,7 +164,10 @@ mod tests {
     fn test_other_os_subsystem_config() {
         let other = Os::Other("freebsd".to_string());
         assert_eq!(detect_ipc(&other), IpcMechanism::UnixDomainSocket);
-        assert_eq!(detect_snapshot_strategy(&other), SnapshotStrategy::FileCopyFallback);
+        assert_eq!(
+            detect_snapshot_strategy(&other),
+            SnapshotStrategy::FileCopyFallback
+        );
         assert!(!detect_keychain(&other));
     }
 

@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -46,14 +46,29 @@ pub struct SelfHealer {
 
 impl SelfHealer {
     pub fn new(db: Connection, max_retries: u32) -> Self {
-        Self { db, max_retries, always_fail: false }
+        Self {
+            db,
+            max_retries,
+            always_fail: false,
+        }
     }
 
     pub fn new_with_simulator(db: Connection, max_retries: u32, always_fail: bool) -> Self {
-        Self { db, max_retries, always_fail }
+        Self {
+            db,
+            max_retries,
+            always_fail,
+        }
     }
 
-    fn log_event(&self, agent_pid: u32, original_error: &str, adjustment: &str, outcome: &str, attempt_number: u32) -> Result<(), HealerError> {
+    fn log_event(
+        &self,
+        agent_pid: u32,
+        original_error: &str,
+        adjustment: &str,
+        outcome: &str,
+        attempt_number: u32,
+    ) -> Result<(), HealerError> {
         let ts = chrono::Utc::now().to_rfc3339();
         self.db.execute(
             "INSERT INTO healing_events (agent_pid, timestamp, original_error, adjustment, outcome, attempt_number) \
@@ -63,7 +78,11 @@ impl SelfHealer {
         Ok(())
     }
 
-    pub fn attempt_healing(&self, agent_pid: u32, error: &str) -> Result<HealingOutcome, HealerError> {
+    pub fn attempt_healing(
+        &self,
+        agent_pid: u32,
+        error: &str,
+    ) -> Result<HealingOutcome, HealerError> {
         for attempt in 1..=self.max_retries {
             let adjustment = adjustment_for(attempt);
 
@@ -96,8 +115,17 @@ impl SelfHealer {
         }
 
         let last_adjustment = adjustment_for(self.max_retries);
-        self.log_event(agent_pid, error, last_adjustment, "Failure", self.max_retries)?;
-        Ok(HealingOutcome::Escalated { attempts: self.max_retries, last_error: error.to_string() })
+        self.log_event(
+            agent_pid,
+            error,
+            last_adjustment,
+            "Failure",
+            self.max_retries,
+        )?;
+        Ok(HealingOutcome::Escalated {
+            attempts: self.max_retries,
+            last_error: error.to_string(),
+        })
     }
 
     /// Attempt to roll back the agent's working directory to its most recent
@@ -126,9 +154,10 @@ impl SelfHealer {
         let work_dir = std::path::PathBuf::from(&working_dir);
 
         // Fetch file list from DB
-        let mut stmt = match self.db.prepare(
-            "SELECT file_path FROM snapshot_files WHERE snapshot_id = ?1",
-        ) {
+        let mut stmt = match self
+            .db
+            .prepare("SELECT file_path FROM snapshot_files WHERE snapshot_id = ?1")
+        {
             Ok(s) => s,
             Err(_) => return Some("rollback_failed:db_error".into()),
         };
@@ -169,7 +198,8 @@ impl SelfHealer {
                 attempt_number: row.get(6)?,
             })
         })?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(HealerError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(HealerError::from)
     }
 
     pub fn get_all_history(&self) -> Result<Vec<HealingEvent>, HealerError> {
@@ -188,7 +218,8 @@ impl SelfHealer {
                 attempt_number: row.get(6)?,
             })
         })?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(HealerError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(HealerError::from)
     }
 }
 
@@ -214,7 +245,10 @@ mod tests {
     fn test_successful_healing_on_first_retry() {
         let (_f, healer) = make_healer(3);
         let outcome = healer.attempt_healing(42, "timeout error").unwrap();
-        assert!(matches!(outcome, HealingOutcome::Recovered { attempt: 1, .. }));
+        assert!(matches!(
+            outcome,
+            HealingOutcome::Recovered { attempt: 1, .. }
+        ));
     }
 
     #[test]
@@ -232,7 +266,10 @@ mod tests {
     fn test_retry_limit_enforced_all_fail() {
         let (_f, healer) = make_failing_healer(3);
         let outcome = healer.attempt_healing(7, "crash").unwrap();
-        assert!(matches!(outcome, HealingOutcome::Escalated { attempts: 3, .. }));
+        assert!(matches!(
+            outcome,
+            HealingOutcome::Escalated { attempts: 3, .. }
+        ));
     }
 
     #[test]
@@ -259,7 +296,10 @@ mod tests {
     fn test_max_retries_one_always_escalates() {
         let (_f, healer) = make_failing_healer(1);
         let outcome = healer.attempt_healing(99, "err").unwrap();
-        assert!(matches!(outcome, HealingOutcome::Escalated { attempts: 1, .. }));
+        assert!(matches!(
+            outcome,
+            HealingOutcome::Escalated { attempts: 1, .. }
+        ));
     }
 
     #[test]

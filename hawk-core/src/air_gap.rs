@@ -10,7 +10,10 @@ pub enum AirGapError {
 impl std::fmt::Display for AirGapError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AirGapError::Blocked { agent_pid, endpoint } => {
+            AirGapError::Blocked {
+                agent_pid,
+                endpoint,
+            } => {
                 write!(f, "air-gap: agent {agent_pid} blocked from {endpoint}")
             }
             AirGapError::CloudProviderBlocked { provider_name } => {
@@ -39,16 +42,29 @@ impl AirGapEnforcer {
     }
 
     pub fn check_network_request(&self, agent_pid: u32, endpoint: &str) -> Result<(), AirGapError> {
-        if !self.enabled { return Ok(()); }
-        if is_local_endpoint(endpoint) { return Ok(()); }
+        if !self.enabled {
+            return Ok(());
+        }
+        if is_local_endpoint(endpoint) {
+            return Ok(());
+        }
         eprintln!("air-gap: denied agent {agent_pid} → {endpoint}");
-        Err(AirGapError::Blocked { agent_pid, endpoint: endpoint.to_string() })
+        Err(AirGapError::Blocked {
+            agent_pid,
+            endpoint: endpoint.to_string(),
+        })
     }
 
     pub fn check_llm_provider(&self, provider: &LlmProvider) -> Result<(), AirGapError> {
-        if !self.enabled { return Ok(()); }
-        if provider.is_local { return Ok(()); }
-        Err(AirGapError::CloudProviderBlocked { provider_name: provider.name.clone() })
+        if !self.enabled {
+            return Ok(());
+        }
+        if provider.is_local {
+            return Ok(());
+        }
+        Err(AirGapError::CloudProviderBlocked {
+            provider_name: provider.name.clone(),
+        })
     }
 
     pub fn filter_llm_providers<'a>(&self, providers: &'a [LlmProvider]) -> Vec<&'a LlmProvider> {
@@ -59,9 +75,13 @@ impl AirGapEnforcer {
     }
 
     pub fn check_nest_operation(&self, operation: &str) -> Result<(), AirGapError> {
-        if !self.enabled { return Ok(()); }
+        if !self.enabled {
+            return Ok(());
+        }
         match operation {
-            "publish" | "search_remote" => Err(AirGapError::NetworkOperationBlocked { operation: operation.to_string() }),
+            "publish" | "search_remote" => Err(AirGapError::NetworkOperationBlocked {
+                operation: operation.to_string(),
+            }),
             _ => Ok(()),
         }
     }
@@ -76,42 +96,68 @@ mod tests {
     use super::*;
 
     fn local_provider(name: &str) -> LlmProvider {
-        LlmProvider { name: name.to_string(), endpoint: "http://localhost:11434".to_string(), priority: 1, is_local: true }
+        LlmProvider {
+            name: name.to_string(),
+            endpoint: "http://localhost:11434".to_string(),
+            priority: 1,
+            is_local: true,
+        }
     }
 
     fn cloud_provider(name: &str) -> LlmProvider {
-        LlmProvider { name: name.to_string(), endpoint: "https://api.openai.com/v1".to_string(), priority: 1, is_local: false }
+        LlmProvider {
+            name: name.to_string(),
+            endpoint: "https://api.openai.com/v1".to_string(),
+            priority: 1,
+            is_local: false,
+        }
     }
 
     #[test]
     fn network_request_blocked_when_enabled_and_remote() {
         let enforcer = AirGapEnforcer::new(true);
-        let err = enforcer.check_network_request(42, "https://api.example.com").unwrap_err();
-        assert_eq!(err, AirGapError::Blocked { agent_pid: 42, endpoint: "https://api.example.com".to_string() });
+        let err = enforcer
+            .check_network_request(42, "https://api.example.com")
+            .unwrap_err();
+        assert_eq!(
+            err,
+            AirGapError::Blocked {
+                agent_pid: 42,
+                endpoint: "https://api.example.com".to_string()
+            }
+        );
     }
 
     #[test]
     fn network_request_allowed_when_disabled() {
         let enforcer = AirGapEnforcer::new(false);
-        assert!(enforcer.check_network_request(1, "https://api.example.com").is_ok());
+        assert!(enforcer
+            .check_network_request(1, "https://api.example.com")
+            .is_ok());
     }
 
     #[test]
     fn network_request_allowed_for_localhost() {
         let enforcer = AirGapEnforcer::new(true);
-        assert!(enforcer.check_network_request(1, "http://localhost:11434").is_ok());
+        assert!(enforcer
+            .check_network_request(1, "http://localhost:11434")
+            .is_ok());
     }
 
     #[test]
     fn network_request_allowed_for_127_0_0_1() {
         let enforcer = AirGapEnforcer::new(true);
-        assert!(enforcer.check_network_request(1, "http://127.0.0.1:8080").is_ok());
+        assert!(enforcer
+            .check_network_request(1, "http://127.0.0.1:8080")
+            .is_ok());
     }
 
     #[test]
     fn denied_request_includes_agent_pid_and_endpoint() {
         let enforcer = AirGapEnforcer::new(true);
-        let err = enforcer.check_network_request(99, "https://remote.host/api").unwrap_err();
+        let err = enforcer
+            .check_network_request(99, "https://remote.host/api")
+            .unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("99"));
         assert!(msg.contains("https://remote.host/api"));
@@ -122,19 +168,28 @@ mod tests {
         let enforcer = AirGapEnforcer::new(true);
         let provider = cloud_provider("openai");
         let err = enforcer.check_llm_provider(&provider).unwrap_err();
-        assert_eq!(err, AirGapError::CloudProviderBlocked { provider_name: "openai".to_string() });
+        assert_eq!(
+            err,
+            AirGapError::CloudProviderBlocked {
+                provider_name: "openai".to_string()
+            }
+        );
     }
 
     #[test]
     fn llm_local_provider_allowed_when_enabled() {
         let enforcer = AirGapEnforcer::new(true);
-        assert!(enforcer.check_llm_provider(&local_provider("ollama")).is_ok());
+        assert!(enforcer
+            .check_llm_provider(&local_provider("ollama"))
+            .is_ok());
     }
 
     #[test]
     fn llm_cloud_provider_allowed_when_disabled() {
         let enforcer = AirGapEnforcer::new(false);
-        assert!(enforcer.check_llm_provider(&cloud_provider("openai")).is_ok());
+        assert!(enforcer
+            .check_llm_provider(&cloud_provider("openai"))
+            .is_ok());
     }
 
     #[test]
@@ -164,13 +219,21 @@ mod tests {
     fn nest_publish_blocked_when_enabled() {
         let enforcer = AirGapEnforcer::new(true);
         let err = enforcer.check_nest_operation("publish").unwrap_err();
-        assert_eq!(err, AirGapError::NetworkOperationBlocked { operation: "publish".to_string() });
+        assert_eq!(
+            err,
+            AirGapError::NetworkOperationBlocked {
+                operation: "publish".to_string()
+            }
+        );
     }
 
     #[test]
     fn nest_search_remote_blocked_when_enabled() {
         let enforcer = AirGapEnforcer::new(true);
-        assert!(matches!(enforcer.check_nest_operation("search_remote"), Err(AirGapError::NetworkOperationBlocked { .. })));
+        assert!(matches!(
+            enforcer.check_nest_operation("search_remote"),
+            Err(AirGapError::NetworkOperationBlocked { .. })
+        ));
     }
 
     #[test]

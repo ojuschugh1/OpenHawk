@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -73,10 +73,15 @@ impl SessionRecorder {
                 payload: row.get(6)?,
             })
         })?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(RecorderError::Database)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(RecorderError::Database)
     }
 
-    pub fn get_state_at_step(&self, session_id: &str, step: u32) -> Result<SessionState, RecorderError> {
+    pub fn get_state_at_step(
+        &self,
+        session_id: &str,
+        step: u32,
+    ) -> Result<SessionState, RecorderError> {
         let mut stmt = self.db.prepare(
             "SELECT id, session_id, step_number, timestamp, action_type, agent_pid, payload \
              FROM session_actions WHERE session_id = ?1 AND step_number <= ?2 ORDER BY step_number ASC",
@@ -92,8 +97,14 @@ impl SessionRecorder {
                 payload: row.get(6)?,
             })
         })?;
-        let actions = rows.collect::<Result<Vec<_>, _>>().map_err(RecorderError::Database)?;
-        Ok(SessionState { session_id: session_id.to_string(), actions_up_to_step: actions, step })
+        let actions = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(RecorderError::Database)?;
+        Ok(SessionState {
+            session_id: session_id.to_string(),
+            actions_up_to_step: actions,
+            step,
+        })
     }
 
     pub fn cleanup_old_sessions(&self, retention_days: u32) -> Result<u64, RecorderError> {
@@ -127,7 +138,9 @@ mod tests {
     fn record_action_stores_correct_data() {
         let (_f, rec) = make_recorder();
         let payload = serde_json::json!({"path": "/tmp/foo.txt"});
-        let step = rec.record_action("sess-1", 42, "file_write", payload).unwrap();
+        let step = rec
+            .record_action("sess-1", 42, "file_write", payload)
+            .unwrap();
         assert_eq!(step, 1);
         let log = rec.get_log("sess-1").unwrap();
         assert_eq!(log.len(), 1);
@@ -143,9 +156,15 @@ mod tests {
     #[test]
     fn step_numbers_are_sequential() {
         let (_f, rec) = make_recorder();
-        let s1 = rec.record_action("sess-1", 1, "file_read", serde_json::json!({})).unwrap();
-        let s2 = rec.record_action("sess-1", 1, "api_call", serde_json::json!({})).unwrap();
-        let s3 = rec.record_action("sess-1", 1, "msg_sent", serde_json::json!({})).unwrap();
+        let s1 = rec
+            .record_action("sess-1", 1, "file_read", serde_json::json!({}))
+            .unwrap();
+        let s2 = rec
+            .record_action("sess-1", 1, "api_call", serde_json::json!({}))
+            .unwrap();
+        let s3 = rec
+            .record_action("sess-1", 1, "msg_sent", serde_json::json!({}))
+            .unwrap();
         assert_eq!(s1, 1);
         assert_eq!(s2, 2);
         assert_eq!(s3, 3);
@@ -155,7 +174,8 @@ mod tests {
     fn get_log_returns_chronological_order() {
         let (_f, rec) = make_recorder();
         for action_type in &["file_read", "api_call", "llm_prompt", "llm_response"] {
-            rec.record_action("sess-1", 1, action_type, serde_json::json!({})).unwrap();
+            rec.record_action("sess-1", 1, action_type, serde_json::json!({}))
+                .unwrap();
         }
         let log = rec.get_log("sess-1").unwrap();
         assert_eq!(log.len(), 4);
@@ -168,7 +188,8 @@ mod tests {
     fn get_state_at_step_returns_actions_up_to_step() {
         let (_f, rec) = make_recorder();
         for action_type in &["file_read", "file_write", "api_call", "msg_sent"] {
-            rec.record_action("sess-1", 1, action_type, serde_json::json!({})).unwrap();
+            rec.record_action("sess-1", 1, action_type, serde_json::json!({}))
+                .unwrap();
         }
         let state = rec.get_state_at_step("sess-1", 2).unwrap();
         assert_eq!(state.step, 2);
@@ -180,8 +201,10 @@ mod tests {
     #[test]
     fn get_state_at_step_includes_step_itself() {
         let (_f, rec) = make_recorder();
-        rec.record_action("sess-1", 1, "file_read", serde_json::json!({})).unwrap();
-        rec.record_action("sess-1", 1, "file_write", serde_json::json!({})).unwrap();
+        rec.record_action("sess-1", 1, "file_read", serde_json::json!({}))
+            .unwrap();
+        rec.record_action("sess-1", 1, "file_write", serde_json::json!({}))
+            .unwrap();
         let state = rec.get_state_at_step("sess-1", 1).unwrap();
         assert_eq!(state.actions_up_to_step.len(), 1);
     }
@@ -208,7 +231,8 @@ mod tests {
     #[test]
     fn cleanup_preserves_recent_actions() {
         let (_f, rec) = make_recorder();
-        rec.record_action("sess-1", 1, "file_read", serde_json::json!({})).unwrap();
+        rec.record_action("sess-1", 1, "file_read", serde_json::json!({}))
+            .unwrap();
         let deleted = rec.cleanup_old_sessions(30).unwrap();
         assert_eq!(deleted, 0);
         assert_eq!(rec.get_log("sess-1").unwrap().len(), 1);

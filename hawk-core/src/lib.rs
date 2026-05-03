@@ -1,7 +1,7 @@
 // hawk-core: central kernel — agent lifecycle, permissions, orchestration
 
-pub mod air_gap;
 pub mod agent_manager;
+pub mod air_gap;
 pub mod config;
 pub mod config_engine;
 pub mod daemon;

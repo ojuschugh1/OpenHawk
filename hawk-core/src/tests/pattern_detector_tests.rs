@@ -28,7 +28,9 @@ fn record_action_stores_sequence_in_order() {
     }
     let patterns = d.detect_patterns();
     assert!(
-        patterns.iter().any(|p| p.action_sequence == vec!["open file", "edit file", "save file"]),
+        patterns
+            .iter()
+            .any(|p| p.action_sequence == vec!["open file", "edit file", "save file"]),
         "expected the 3-action sequence to be detected"
     );
 }
@@ -53,7 +55,10 @@ fn detect_patterns_requires_min_5_occurrences() {
         d.record_action("z");
     }
     let patterns = d.detect_patterns();
-    assert!(patterns.is_empty(), "4 occurrences should not trigger detection");
+    assert!(
+        patterns.is_empty(),
+        "4 occurrences should not trigger detection"
+    );
 }
 
 #[test]
@@ -97,8 +102,15 @@ fn detect_patterns_upserts_on_second_call() {
     }
     d.detect_patterns();
     let records = d.list_patterns().unwrap();
-    let matching: Vec<_> = records.iter().filter(|r| r.action_sequence == vec!["a", "b", "c"]).collect();
-    assert_eq!(matching.len(), 1, "same sequence must not create duplicate rows");
+    let matching: Vec<_> = records
+        .iter()
+        .filter(|r| r.action_sequence == vec!["a", "b", "c"])
+        .collect();
+    assert_eq!(
+        matching.len(),
+        1,
+        "same sequence must not create duplicate rows"
+    );
     assert!(matching[0].occurrence_count >= 5);
 }
 
@@ -207,7 +219,11 @@ fn cleanup_expired_removes_past_expiry_rows() {
     let d = PatternDetector::new(conn, 90);
     let deleted = d.cleanup_expired().unwrap();
     assert_eq!(deleted, 1);
-    assert!(d.list_patterns().unwrap().iter().all(|r| r.id != "expired-id"));
+    assert!(d
+        .list_patterns()
+        .unwrap()
+        .iter()
+        .all(|r| r.id != "expired-id"));
 }
 
 #[test]

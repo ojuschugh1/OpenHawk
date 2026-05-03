@@ -54,11 +54,18 @@ pub struct Tool {
 #[derive(Debug, Clone)]
 pub enum InstallMethod {
     /// curl -fsSL <url> | sh  (with optional env vars)
-    CurlSh { url: &'static str, env: &'static [(&'static str, &'static str)] },
+    CurlSh {
+        url: &'static str,
+        env: &'static [(&'static str, &'static str)],
+    },
     /// cargo install --git <url> --force
     CargoGit(&'static str),
     /// go install <pkg>@latest, with git-clone fallback
-    GoInstall { pkg: &'static str, repo: &'static str, bin: &'static str },
+    GoInstall {
+        pkg: &'static str,
+        repo: &'static str,
+        bin: &'static str,
+    },
 }
 
 pub fn all_tools() -> Vec<Tool> {
@@ -160,7 +167,11 @@ pub fn install_tool(tool: &Tool, force_update: bool) -> InstallResult {
 
     match result {
         Ok(()) => {
-            if already { InstallResult::Updated } else { InstallResult::Installed }
+            if already {
+                InstallResult::Updated
+            } else {
+                InstallResult::Installed
+            }
         }
         Err(e) => InstallResult::Failed(e),
     }
@@ -173,11 +184,7 @@ fn local_bin_dir() -> PathBuf {
         .join("bin")
 }
 
-fn run_curl_sh(
-    url: &str,
-    extra_env: &[(&str, &str)],
-    tool_name: &str,
-) -> Result<(), String> {
+fn run_curl_sh(url: &str, extra_env: &[(&str, &str)], tool_name: &str) -> Result<(), String> {
     // Ensure ~/.local/bin exists (used as fallback install dir)
     let local_bin = local_bin_dir();
     let _ = std::fs::create_dir_all(&local_bin);
@@ -195,11 +202,17 @@ fn run_curl_sh(
 
     // apply any tool-specific env overrides
     for (k, v) in extra_env {
-        let val = if v.is_empty() { install_dir.as_str() } else { v };
+        let val = if v.is_empty() {
+            install_dir.as_str()
+        } else {
+            v
+        };
         cmd.env(k, val);
     }
 
-    let status = cmd.status().map_err(|e| format!("failed to run curl: {e}"))?;
+    let status = cmd
+        .status()
+        .map_err(|e| format!("failed to run curl: {e}"))?;
 
     if status.success() {
         // Add ~/.local/bin to PATH hint if not already there
@@ -361,6 +374,7 @@ fn run_go_build_from_source(repo: &str, bin: &str) -> Result<(), String> {
 // ── Main setup flow ───────────────────────────────────────────────────────────
 
 pub struct SetupOptions {
+    #[allow(dead_code)]
     pub skip_installed: bool,
     pub force_update: bool,
     pub yes: bool,
@@ -383,29 +397,37 @@ impl Default for SetupOptions {
 pub fn run_setup(opts: SetupOptions) -> anyhow::Result<()> {
     let tools = all_tools();
 
-    let tools: Vec<&Tool> = tools.iter().filter(|t| {
-        if !opts.only.is_empty() {
-            return opts.only.iter().any(|n| n == t.name);
-        }
-        if opts.skip.iter().any(|n| n == t.name) {
-            return false;
-        }
-        true
-    }).collect();
+    let tools: Vec<&Tool> = tools
+        .iter()
+        .filter(|t| {
+            if !opts.only.is_empty() {
+                return opts.only.iter().any(|n| n == t.name);
+            }
+            if opts.skip.iter().any(|n| n == t.name) {
+                return false;
+            }
+            true
+        })
+        .collect();
 
     println!("OpenHawk companion tools setup");
     println!("{}", "=".repeat(50));
     println!();
 
-    println!("{:<14} {:<12} {}", "TOOL", "STATUS", "DESCRIPTION");
+    println!("{:<14} {:<12} DESCRIPTION", "TOOL", "STATUS");
     println!("{}", "-".repeat(70));
     for tool in &tools {
-        let status = if tool_available(tool.check_cmd) { "installed" } else { "missing" };
+        let status = if tool_available(tool.check_cmd) {
+            "installed"
+        } else {
+            "missing"
+        };
         println!("{:<14} {:<12} {}", tool.name, status, tool.description);
     }
     println!();
 
-    let to_install: Vec<&&Tool> = tools.iter()
+    let to_install: Vec<&&Tool> = tools
+        .iter()
         .filter(|t| opts.force_update || !tool_available(t.check_cmd))
         .collect();
 

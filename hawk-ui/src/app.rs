@@ -109,7 +109,9 @@ impl HawkEyeApp {
         match action {
             AppAction::SelectNext => {
                 let len = self.filtered_agents().len();
-                if len == 0 { return; }
+                if len == 0 {
+                    return;
+                }
                 self.selected_agent = Some(match self.selected_agent {
                     None => 0,
                     Some(i) => (i + 1).min(len - 1),
@@ -117,7 +119,9 @@ impl HawkEyeApp {
             }
             AppAction::SelectPrev => {
                 let len = self.filtered_agents().len();
-                if len == 0 { return; }
+                if len == 0 {
+                    return;
+                }
                 self.selected_agent = Some(match self.selected_agent {
                     None => 0,
                     Some(0) => 0,
@@ -172,7 +176,10 @@ impl HawkEyeApp {
             self.agents.iter().collect()
         } else {
             let q = self.search_query.to_lowercase();
-            self.agents.iter().filter(|a| a.name.to_lowercase().contains(&q)).collect()
+            self.agents
+                .iter()
+                .filter(|a| a.name.to_lowercase().contains(&q))
+                .collect()
         }
     }
 

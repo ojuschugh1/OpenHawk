@@ -30,7 +30,9 @@ struct HandlerRegistry {
 
 impl HandlerRegistry {
     fn new() -> Self {
-        Self { handlers: HashMap::new() }
+        Self {
+            handlers: HashMap::new(),
+        }
     }
 
     fn register(&mut self, method: &str, handler: Handler) -> Result<(), SdkError> {
@@ -66,11 +68,22 @@ impl HawkClient {
     }
 
     pub async fn publish(&self, topic: &str, payload: serde_json::Value) -> Result<(), SdkError> {
-        let method = payload.get("method").and_then(|v| v.as_str()).unwrap_or("").to_owned();
-        let jsonrpc = payload.get("jsonrpc").and_then(|v| v.as_str()).unwrap_or("").to_owned();
+        let method = payload
+            .get("method")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned();
+        let jsonrpc = payload
+            .get("jsonrpc")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned();
 
         if jsonrpc != "2.0" {
-            return Err(SdkError::Validation(format!("jsonrpc must be \"2.0\", got {:?}", jsonrpc)));
+            return Err(SdkError::Validation(format!(
+                "jsonrpc must be \"2.0\", got {:?}",
+                jsonrpc
+            )));
         }
         if method.is_empty() {
             return Err(SdkError::Validation("method must not be empty".into()));
@@ -79,7 +92,10 @@ impl HawkClient {
         let msg = BusMessage {
             jsonrpc,
             method,
-            params: payload.get("params").cloned().unwrap_or(serde_json::Value::Null),
+            params: payload
+                .get("params")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null),
             id: payload.get("id").and_then(|v| v.as_u64()),
         };
 
@@ -133,7 +149,9 @@ pub mod scaffold {
             "rust" => Ok(rust_scaffold(agent_name)),
             "python" => Ok(python_scaffold(agent_name)),
             "typescript" => Ok(typescript_scaffold(agent_name)),
-            other => Err(format!("unsupported language: {other}. Use rust, python, or typescript")),
+            other => Err(format!(
+                "unsupported language: {other}. Use rust, python, or typescript"
+            )),
         }
     }
 
@@ -165,7 +183,10 @@ pub mod scaffold {
         );
         ScaffoldFiles {
             files: vec![
-                ("Agent_Manifest.toml".into(), manifest(name, "python main.py")),
+                (
+                    "Agent_Manifest.toml".into(),
+                    manifest(name, "python main.py"),
+                ),
                 ("main.py".into(), main_py),
                 ("requirements.txt".into(), "hawk-sdk\n".into()),
             ],
@@ -181,7 +202,10 @@ pub mod scaffold {
         );
         ScaffoldFiles {
             files: vec![
-                ("Agent_Manifest.toml".into(), manifest(name, "node dist/index.js")),
+                (
+                    "Agent_Manifest.toml".into(),
+                    manifest(name, "node dist/index.js"),
+                ),
                 ("src/index.ts".into(), index_ts),
                 ("package.json".into(), package_json),
             ],
@@ -208,7 +232,12 @@ mod tests {
     async fn publish_valid_message_delivers_to_subscriber() {
         let c = client();
         let mut rx = c.subscribe("test.topic").unwrap();
-        c.publish("test.topic", serde_json::json!({"jsonrpc": "2.0", "method": "do.thing", "params": {}})).await.unwrap();
+        c.publish(
+            "test.topic",
+            serde_json::json!({"jsonrpc": "2.0", "method": "do.thing", "params": {}}),
+        )
+        .await
+        .unwrap();
         let msg = rx.recv().await.unwrap();
         assert_eq!(msg.method, "do.thing");
     }
@@ -216,7 +245,13 @@ mod tests {
     #[tokio::test]
     async fn publish_wrong_jsonrpc_version_returns_validation_error() {
         let c = client();
-        let err = c.publish("t", serde_json::json!({"jsonrpc": "1.0", "method": "x", "params": {}})).await.unwrap_err();
+        let err = c
+            .publish(
+                "t",
+                serde_json::json!({"jsonrpc": "1.0", "method": "x", "params": {}}),
+            )
+            .await
+            .unwrap_err();
         assert!(matches!(err, SdkError::Validation(_)));
         assert!(err.to_string().contains("jsonrpc"));
     }
@@ -224,7 +259,13 @@ mod tests {
     #[tokio::test]
     async fn publish_empty_method_returns_validation_error() {
         let c = client();
-        let err = c.publish("t", serde_json::json!({"jsonrpc": "2.0", "method": "", "params": {}})).await.unwrap_err();
+        let err = c
+            .publish(
+                "t",
+                serde_json::json!({"jsonrpc": "2.0", "method": "", "params": {}}),
+            )
+            .await
+            .unwrap_err();
         assert!(matches!(err, SdkError::Validation(_)));
         assert!(err.to_string().contains("method"));
     }
@@ -232,14 +273,20 @@ mod tests {
     #[tokio::test]
     async fn publish_missing_jsonrpc_field_returns_validation_error() {
         let c = client();
-        let err = c.publish("t", serde_json::json!({"method": "x", "params": {}})).await.unwrap_err();
+        let err = c
+            .publish("t", serde_json::json!({"method": "x", "params": {}}))
+            .await
+            .unwrap_err();
         assert!(matches!(err, SdkError::Validation(_)));
     }
 
     #[tokio::test]
     async fn publish_missing_method_field_returns_validation_error() {
         let c = client();
-        let err = c.publish("t", serde_json::json!({"jsonrpc": "2.0", "params": {}})).await.unwrap_err();
+        let err = c
+            .publish("t", serde_json::json!({"jsonrpc": "2.0", "params": {}}))
+            .await
+            .unwrap_err();
         assert!(matches!(err, SdkError::Validation(_)));
     }
 
@@ -253,7 +300,8 @@ mod tests {
     #[test]
     fn memory_set_and_get_agent_scope_round_trip() {
         let c = client();
-        c.memory_set(MemoryScope::Agent(1234), "priv", b"secret").unwrap();
+        c.memory_set(MemoryScope::Agent(1234), "priv", b"secret")
+            .unwrap();
         assert_eq!(c.memory_get("priv").unwrap(), Some(b"secret".to_vec()));
     }
 
@@ -268,8 +316,19 @@ mod tests {
         let c = client();
         let called = Arc::new(Mutex::new(false));
         let called_clone = Arc::clone(&called);
-        c.register_handler("ping", Box::new(move |_msg| { *called_clone.lock().unwrap() = true; })).unwrap();
-        let msg = BusMessage { jsonrpc: "2.0".into(), method: "ping".into(), params: serde_json::json!({}), id: None };
+        c.register_handler(
+            "ping",
+            Box::new(move |_msg| {
+                *called_clone.lock().unwrap() = true;
+            }),
+        )
+        .unwrap();
+        let msg = BusMessage {
+            jsonrpc: "2.0".into(),
+            method: "ping".into(),
+            params: serde_json::json!({}),
+            id: None,
+        };
         c.dispatch(&msg);
         assert!(*called.lock().unwrap());
     }
@@ -277,7 +336,12 @@ mod tests {
     #[test]
     fn dispatch_unknown_method_does_not_panic() {
         let c = client();
-        let msg = BusMessage { jsonrpc: "2.0".into(), method: "unknown".into(), params: serde_json::json!({}), id: None };
+        let msg = BusMessage {
+            jsonrpc: "2.0".into(),
+            method: "unknown".into(),
+            params: serde_json::json!({}),
+            id: None,
+        };
         c.dispatch(&msg);
     }
 
@@ -285,7 +349,9 @@ mod tests {
     fn register_duplicate_handler_returns_error() {
         let c = client();
         c.register_handler("method.x", Box::new(|_| {})).unwrap();
-        let err = c.register_handler("method.x", Box::new(|_| {})).unwrap_err();
+        let err = c
+            .register_handler("method.x", Box::new(|_| {}))
+            .unwrap_err();
         assert!(matches!(err, SdkError::DuplicateHandler(_)));
     }
 
@@ -323,7 +389,11 @@ mod tests {
     #[test]
     fn scaffold_manifest_contains_agent_name() {
         let s = scaffold::generate("rust", "cool-agent").unwrap();
-        let manifest = s.files.iter().find(|(n, _)| n == "Agent_Manifest.toml").unwrap();
+        let manifest = s
+            .files
+            .iter()
+            .find(|(n, _)| n == "Agent_Manifest.toml")
+            .unwrap();
         assert!(manifest.1.contains("cool-agent"));
     }
 }

@@ -18,21 +18,30 @@ fn failing_healer(max_retries: u32) -> (NamedTempFile, SelfHealer) {
 fn healing_reverts_to_snapshot_before_retry() {
     let (_f, h) = healer(3);
     let outcome = h.attempt_healing(1, "test error").unwrap();
-    assert!(matches!(outcome, HealingOutcome::Recovered { attempt: 1, .. }));
+    assert!(matches!(
+        outcome,
+        HealingOutcome::Recovered { attempt: 1, .. }
+    ));
 }
 
 #[test]
 fn retry_limit_is_enforced() {
     let (_f, h) = failing_healer(3);
     let outcome = h.attempt_healing(2, "persistent error").unwrap();
-    assert!(matches!(outcome, HealingOutcome::Escalated { attempts: 3, .. }));
+    assert!(matches!(
+        outcome,
+        HealingOutcome::Escalated { attempts: 3, .. }
+    ));
 }
 
 #[test]
 fn custom_retry_limit_respected() {
     let (_f, h) = failing_healer(5);
     let outcome = h.attempt_healing(3, "err").unwrap();
-    assert!(matches!(outcome, HealingOutcome::Escalated { attempts: 5, .. }));
+    assert!(matches!(
+        outcome,
+        HealingOutcome::Escalated { attempts: 5, .. }
+    ));
 }
 
 #[test]
@@ -40,7 +49,10 @@ fn successful_healing_records_recovery() {
     let (_f, h) = healer(3);
     let outcome = h.attempt_healing(10, "recoverable").unwrap();
     match outcome {
-        HealingOutcome::Recovered { attempt, adjustment } => {
+        HealingOutcome::Recovered {
+            attempt,
+            adjustment,
+        } => {
             assert_eq!(attempt, 1);
             assert_eq!(adjustment, "reduce_context");
         }

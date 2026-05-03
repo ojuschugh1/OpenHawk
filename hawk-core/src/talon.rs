@@ -99,7 +99,13 @@ impl TalonRegistry {
         }
     }
 
-    pub fn install(&self, name: &str, version: &str, signature: &str, capabilities: Vec<Capability>) -> Result<()> {
+    pub fn install(
+        &self,
+        name: &str,
+        version: &str,
+        signature: &str,
+        capabilities: Vec<Capability>,
+    ) -> Result<()> {
         if !verify_signature(name, version, signature) {
             eprintln!("SECURITY WARNING: signature verification failed for talon '{name}'. Installation rejected.");
             return Err(TalonError::InvalidSignature(name.to_string()));
@@ -108,13 +114,16 @@ impl TalonRegistry {
         if records.contains_key(name) {
             return Err(TalonError::AlreadyInstalled(name.to_string()));
         }
-        records.insert(name.to_string(), TalonRecord {
-            name: name.to_string(),
-            version: version.to_string(),
-            status: TalonStatus::Unloaded,
-            capabilities,
-            signature: signature.to_string(),
-        });
+        records.insert(
+            name.to_string(),
+            TalonRecord {
+                name: name.to_string(),
+                version: version.to_string(),
+                status: TalonStatus::Unloaded,
+                capabilities,
+                signature: signature.to_string(),
+            },
+        );
         Ok(())
     }
 
@@ -122,7 +131,9 @@ impl TalonRegistry {
         let mut instances = self.instances.lock().unwrap();
         let mut records = self.records.lock().unwrap();
 
-        let record = records.get_mut(name).ok_or_else(|| TalonError::NotFound(name.to_string()))?;
+        let record = records
+            .get_mut(name)
+            .ok_or_else(|| TalonError::NotFound(name.to_string()))?;
 
         if let Some(t) = instances.get_mut(name) {
             let t_ptr = t.as_mut() as *mut dyn Talon;
@@ -131,7 +142,10 @@ impl TalonRegistry {
                 unsafe { &mut *t_ptr }.load()
             }));
             match result {
-                Ok(Ok(())) => { record.status = TalonStatus::Loaded; Ok(()) }
+                Ok(Ok(())) => {
+                    record.status = TalonStatus::Loaded;
+                    Ok(())
+                }
                 Ok(Err(e)) => {
                     let msg = e.to_string();
                     record.status = TalonStatus::Failed(msg.clone());
@@ -154,11 +168,14 @@ impl TalonRegistry {
         let mut instances = self.instances.lock().unwrap();
         let mut records = self.records.lock().unwrap();
 
-        let record = records.get_mut(name).ok_or_else(|| TalonError::NotFound(name.to_string()))?;
+        let record = records
+            .get_mut(name)
+            .ok_or_else(|| TalonError::NotFound(name.to_string()))?;
 
         if let Some(t) = instances.get_mut(name) {
             let t_ptr = t.as_mut() as *mut dyn Talon;
-            let result = panic::catch_unwind(panic::AssertUnwindSafe(|| unsafe { &mut *t_ptr }.unload()));
+            let result =
+                panic::catch_unwind(panic::AssertUnwindSafe(|| unsafe { &mut *t_ptr }.unload()));
             match result {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => {
@@ -183,7 +200,11 @@ impl TalonRegistry {
     }
 
     pub fn get_capabilities(&self, name: &str) -> Option<Vec<Capability>> {
-        self.records.lock().unwrap().get(name).map(|r| r.capabilities.clone())
+        self.records
+            .lock()
+            .unwrap()
+            .get(name)
+            .map(|r| r.capabilities.clone())
     }
 
     pub fn is_authorized(agent_manifest_talons: &[String], talon_name: &str) -> bool {
@@ -207,55 +228,116 @@ impl Default for TalonRegistry {
 mod tests {
     use super::*;
 
-    struct GoodTalon { loaded: bool }
-    impl GoodTalon { fn new() -> Self { Self { loaded: false } } }
+    struct GoodTalon {
+        loaded: bool,
+    }
+    impl GoodTalon {
+        fn new() -> Self {
+            Self { loaded: false }
+        }
+    }
     impl Talon for GoodTalon {
-        fn name(&self) -> &str { "good-talon" }
-        fn version(&self) -> &str { "1.0.0" }
-        fn load(&mut self) -> Result<()> { self.loaded = true; Ok(()) }
-        fn unload(&mut self) -> Result<()> { self.loaded = false; Ok(()) }
-        fn configure(&mut self, _: TalonConfig) -> Result<()> { Ok(()) }
+        fn name(&self) -> &str {
+            "good-talon"
+        }
+        fn version(&self) -> &str {
+            "1.0.0"
+        }
+        fn load(&mut self) -> Result<()> {
+            self.loaded = true;
+            Ok(())
+        }
+        fn unload(&mut self) -> Result<()> {
+            self.loaded = false;
+            Ok(())
+        }
+        fn configure(&mut self, _: TalonConfig) -> Result<()> {
+            Ok(())
+        }
         fn capabilities(&self) -> Vec<Capability> {
-            vec![Capability { name: "browse".to_string(), description: "web browsing".to_string() }]
+            vec![Capability {
+                name: "browse".to_string(),
+                description: "web browsing".to_string(),
+            }]
         }
     }
 
     struct PanickingTalon;
     impl Talon for PanickingTalon {
-        fn name(&self) -> &str { "panic-talon" }
-        fn version(&self) -> &str { "0.1.0" }
-        fn load(&mut self) -> Result<()> { panic!("intentional panic for isolation test"); }
-        fn unload(&mut self) -> Result<()> { Ok(()) }
-        fn configure(&mut self, _: TalonConfig) -> Result<()> { Ok(()) }
-        fn capabilities(&self) -> Vec<Capability> { vec![] }
+        fn name(&self) -> &str {
+            "panic-talon"
+        }
+        fn version(&self) -> &str {
+            "0.1.0"
+        }
+        fn load(&mut self) -> Result<()> {
+            panic!("intentional panic for isolation test");
+        }
+        fn unload(&mut self) -> Result<()> {
+            Ok(())
+        }
+        fn configure(&mut self, _: TalonConfig) -> Result<()> {
+            Ok(())
+        }
+        fn capabilities(&self) -> Vec<Capability> {
+            vec![]
+        }
     }
 
     struct FailingTalon;
     impl Talon for FailingTalon {
-        fn name(&self) -> &str { "fail-talon" }
-        fn version(&self) -> &str { "0.1.0" }
-        fn load(&mut self) -> Result<()> { Err(TalonError::Lifecycle("load failed".to_string())) }
-        fn unload(&mut self) -> Result<()> { Ok(()) }
-        fn configure(&mut self, _: TalonConfig) -> Result<()> { Ok(()) }
-        fn capabilities(&self) -> Vec<Capability> { vec![] }
+        fn name(&self) -> &str {
+            "fail-talon"
+        }
+        fn version(&self) -> &str {
+            "0.1.0"
+        }
+        fn load(&mut self) -> Result<()> {
+            Err(TalonError::Lifecycle("load failed".to_string()))
+        }
+        fn unload(&mut self) -> Result<()> {
+            Ok(())
+        }
+        fn configure(&mut self, _: TalonConfig) -> Result<()> {
+            Ok(())
+        }
+        fn capabilities(&self) -> Vec<Capability> {
+            vec![]
+        }
     }
 
     fn install_good(registry: &TalonRegistry) {
         let sig = make_signature("good-talon", "1.0.0");
-        registry.install("good-talon", "1.0.0", &sig, vec![
-            Capability { name: "browse".to_string(), description: "web browsing".to_string() },
-        ]).unwrap();
+        registry
+            .install(
+                "good-talon",
+                "1.0.0",
+                &sig,
+                vec![Capability {
+                    name: "browse".to_string(),
+                    description: "web browsing".to_string(),
+                }],
+            )
+            .unwrap();
     }
 
     #[test]
     fn load_and_unload_lifecycle() {
         let registry = TalonRegistry::new();
         install_good(&registry);
-        registry.register_instance(Box::new(GoodTalon::new())).unwrap();
+        registry
+            .register_instance(Box::new(GoodTalon::new()))
+            .unwrap();
         registry.load("good-talon").unwrap();
-        assert_eq!(registry.records.lock().unwrap()["good-talon"].status, TalonStatus::Loaded);
+        assert_eq!(
+            registry.records.lock().unwrap()["good-talon"].status,
+            TalonStatus::Loaded
+        );
         registry.unload("good-talon").unwrap();
-        assert_eq!(registry.records.lock().unwrap()["good-talon"].status, TalonStatus::Unloaded);
+        assert_eq!(
+            registry.records.lock().unwrap()["good-talon"].status,
+            TalonStatus::Unloaded
+        );
     }
 
     #[test]
@@ -268,36 +350,54 @@ mod tests {
     #[test]
     fn invalid_signature_rejected() {
         let registry = TalonRegistry::new();
-        assert!(matches!(registry.install("my-talon", "2.0.0", "bad-sig", vec![]), Err(TalonError::InvalidSignature(_))));
+        assert!(matches!(
+            registry.install("my-talon", "2.0.0", "bad-sig", vec![]),
+            Err(TalonError::InvalidSignature(_))
+        ));
     }
 
     #[test]
     fn wrong_version_signature_rejected() {
         let registry = TalonRegistry::new();
         let sig = make_signature("my-talon", "1.0.0");
-        assert!(matches!(registry.install("my-talon", "2.0.0", &sig, vec![]), Err(TalonError::InvalidSignature(_))));
+        assert!(matches!(
+            registry.install("my-talon", "2.0.0", &sig, vec![]),
+            Err(TalonError::InvalidSignature(_))
+        ));
     }
 
     #[test]
     fn panicking_talon_does_not_crash_process() {
         let registry = TalonRegistry::new();
         let sig = make_signature("panic-talon", "0.1.0");
-        registry.install("panic-talon", "0.1.0", &sig, vec![]).unwrap();
-        registry.register_instance(Box::new(PanickingTalon)).unwrap();
+        registry
+            .install("panic-talon", "0.1.0", &sig, vec![])
+            .unwrap();
+        registry
+            .register_instance(Box::new(PanickingTalon))
+            .unwrap();
         let result = registry.load("panic-talon");
         assert!(matches!(result, Err(TalonError::Panicked(_))));
-        assert!(matches!(registry.records.lock().unwrap()["panic-talon"].status, TalonStatus::Failed(_)));
+        assert!(matches!(
+            registry.records.lock().unwrap()["panic-talon"].status,
+            TalonStatus::Failed(_)
+        ));
     }
 
     #[test]
     fn failing_talon_is_marked_failed() {
         let registry = TalonRegistry::new();
         let sig = make_signature("fail-talon", "0.1.0");
-        registry.install("fail-talon", "0.1.0", &sig, vec![]).unwrap();
+        registry
+            .install("fail-talon", "0.1.0", &sig, vec![])
+            .unwrap();
         registry.register_instance(Box::new(FailingTalon)).unwrap();
         let result = registry.load("fail-talon");
         assert!(matches!(result, Err(TalonError::Lifecycle(_))));
-        assert!(matches!(registry.records.lock().unwrap()["fail-talon"].status, TalonStatus::Failed(_)));
+        assert!(matches!(
+            registry.records.lock().unwrap()["fail-talon"].status,
+            TalonStatus::Failed(_)
+        ));
     }
 
     #[test]
@@ -337,7 +437,9 @@ mod tests {
         let registry = TalonRegistry::new();
         install_good(&registry);
         let sig2 = make_signature("other-talon", "0.5.0");
-        registry.install("other-talon", "0.5.0", &sig2, vec![]).unwrap();
+        registry
+            .install("other-talon", "0.5.0", &sig2, vec![])
+            .unwrap();
         assert_eq!(registry.list().len(), 2);
     }
 
@@ -346,12 +448,18 @@ mod tests {
         let registry = TalonRegistry::new();
         install_good(&registry);
         let sig = make_signature("good-talon", "1.0.0");
-        assert!(matches!(registry.install("good-talon", "1.0.0", &sig, vec![]), Err(TalonError::AlreadyInstalled(_))));
+        assert!(matches!(
+            registry.install("good-talon", "1.0.0", &sig, vec![]),
+            Err(TalonError::AlreadyInstalled(_))
+        ));
     }
 
     #[test]
     fn load_unknown_talon_returns_not_found() {
         let registry = TalonRegistry::new();
-        assert!(matches!(registry.load("ghost"), Err(TalonError::NotFound(_))));
+        assert!(matches!(
+            registry.load("ghost"),
+            Err(TalonError::NotFound(_))
+        ));
     }
 }

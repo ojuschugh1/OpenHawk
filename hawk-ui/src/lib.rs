@@ -3,16 +3,19 @@
 pub mod app;
 pub mod render;
 
-pub use app::{Alert, AlertSeverity, AppAction, HawkEyeApp, HawkEyeView, OrchestrationNode, OrchestrationNodeStatus};
+pub use app::{
+    Alert, AlertSeverity, AppAction, HawkEyeApp, HawkEyeView, OrchestrationNode,
+    OrchestrationNodeStatus,
+};
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
 use std::io;
 use std::time::Duration;
 
@@ -68,7 +71,11 @@ mod tests {
     }
 
     fn make_alert(ts: &str, msg: &str, sev: AlertSeverity) -> Alert {
-        Alert { timestamp: ts.to_string(), message: msg.to_string(), severity: sev }
+        Alert {
+            timestamp: ts.to_string(),
+            message: msg.to_string(),
+            severity: sev,
+        }
     }
 
     fn app_with_agents(agents: Vec<AgentStatus>) -> HawkEyeApp {
@@ -86,7 +93,10 @@ mod tests {
     #[test]
     fn key_j_maps_to_select_next() {
         let app = HawkEyeApp::new();
-        assert_eq!(app.handle_key(KeyCode::Char('j')), Some(AppAction::SelectNext));
+        assert_eq!(
+            app.handle_key(KeyCode::Char('j')),
+            Some(AppAction::SelectNext)
+        );
     }
 
     #[test]
@@ -98,7 +108,10 @@ mod tests {
     #[test]
     fn key_k_maps_to_select_prev() {
         let app = HawkEyeApp::new();
-        assert_eq!(app.handle_key(KeyCode::Char('k')), Some(AppAction::SelectPrev));
+        assert_eq!(
+            app.handle_key(KeyCode::Char('k')),
+            Some(AppAction::SelectPrev)
+        );
     }
 
     #[test]
@@ -122,7 +135,10 @@ mod tests {
     #[test]
     fn key_slash_maps_to_start_search() {
         let app = HawkEyeApp::new();
-        assert_eq!(app.handle_key(KeyCode::Char('/')), Some(AppAction::StartSearch));
+        assert_eq!(
+            app.handle_key(KeyCode::Char('/')),
+            Some(AppAction::StartSearch)
+        );
     }
 
     #[test]
@@ -134,7 +150,10 @@ mod tests {
     #[test]
     fn key_u_maps_to_undo_selected() {
         let app = HawkEyeApp::new();
-        assert_eq!(app.handle_key(KeyCode::Char('u')), Some(AppAction::UndoSelected));
+        assert_eq!(
+            app.handle_key(KeyCode::Char('u')),
+            Some(AppAction::UndoSelected)
+        );
     }
 
     #[test]
@@ -259,7 +278,11 @@ mod tests {
 
     #[test]
     fn filtered_agents_empty_query_returns_all() {
-        let app = app_with_agents(vec![make_agent(1, "alpha"), make_agent(2, "beta"), make_agent(3, "gamma")]);
+        let app = app_with_agents(vec![
+            make_agent(1, "alpha"),
+            make_agent(2, "beta"),
+            make_agent(3, "gamma"),
+        ]);
         assert_eq!(app.filtered_agents().len(), 3);
     }
 
@@ -290,7 +313,11 @@ mod tests {
         app.alerts = vec![
             make_alert("2024-01-01T10:00:00Z", "old alert", AlertSeverity::Info),
             make_alert("2024-01-03T12:00:00Z", "newest alert", AlertSeverity::Error),
-            make_alert("2024-01-02T08:00:00Z", "middle alert", AlertSeverity::Warning),
+            make_alert(
+                "2024-01-02T08:00:00Z",
+                "middle alert",
+                AlertSeverity::Warning,
+            ),
         ];
         let sorted = app.sorted_alerts();
         assert_eq!(sorted[0].message, "newest alert");
@@ -309,7 +336,11 @@ mod tests {
         let mut app = HawkEyeApp::new();
         app.apply_action(AppAction::UndoSelected);
         assert!(app.status_message.is_some());
-        assert!(app.status_message.as_deref().unwrap().contains("No agent selected"));
+        assert!(app
+            .status_message
+            .as_deref()
+            .unwrap()
+            .contains("No agent selected"));
     }
 
     #[test]

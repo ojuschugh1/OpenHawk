@@ -106,7 +106,10 @@ struct StoreState {
 
 impl StoreState {
     fn new() -> Self {
-        Self { entries: HashMap::new(), archive: HashMap::new() }
+        Self {
+            entries: HashMap::new(),
+            archive: HashMap::new(),
+        }
     }
 
     fn composite_key(scope: &MemoryScope, key: &str) -> String {
@@ -121,7 +124,9 @@ pub struct InMemoryStore {
 
 impl InMemoryStore {
     pub fn new() -> Self {
-        Self { state: Arc::new(Mutex::new(StoreState::new())) }
+        Self {
+            state: Arc::new(Mutex::new(StoreState::new())),
+        }
     }
 }
 
@@ -181,8 +186,12 @@ impl SharedMemory for InMemoryStore {
     fn archive_session(&self, session_id: &str) -> Result<(), MemoryError> {
         let mut state = self.state.lock().map_err(|_| MemoryError::LockPoisoned)?;
         let prefix = format!("session:{session_id}:");
-        let session_keys: Vec<String> =
-            state.entries.keys().filter(|k| k.starts_with(&prefix)).cloned().collect();
+        let session_keys: Vec<String> = state
+            .entries
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
         for k in session_keys {
             if let Some(entry) = state.entries.remove(&k) {
                 state.archive.insert(k, entry);
@@ -220,8 +229,8 @@ impl InMemoryStore {
 // aura scan                      -- runs ghostdep internally
 // aura cost [--daily]            -- token cost report
 
-const AURA_BASE: &str = "http://localhost:7437";
 #[allow(dead_code)]
+const AURA_BASE: &str = "http://localhost:7437";
 
 /// Returns true if the Aura daemon is reachable at localhost:7437.
 pub fn aura_available() -> bool {
@@ -229,12 +238,16 @@ pub fn aura_available() -> bool {
     std::net::TcpStream::connect_timeout(
         &"127.0.0.1:7437".parse().unwrap(),
         std::time::Duration::from_millis(200),
-    ).is_ok()
+    )
+    .is_ok()
 }
 
 /// Returns true if the `aura` CLI binary is on PATH.
 pub fn aura_cli_available() -> bool {
-    std::process::Command::new("aura").arg("version").output().is_ok()
+    std::process::Command::new("aura")
+        .arg("version")
+        .output()
+        .is_ok()
 }
 
 /// Aura memory entry as returned by GET /memory/ls.
@@ -266,7 +279,11 @@ pub fn aura_memory_get(key: &str) -> Option<String> {
     if output.status.success() {
         let s = String::from_utf8(output.stdout).ok()?;
         let trimmed = s.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
     } else {
         None
     }
@@ -301,7 +318,9 @@ pub struct AuraMemoryStore {
 
 impl AuraMemoryStore {
     pub fn new() -> Self {
-        Self { fallback: InMemoryStore::new() }
+        Self {
+            fallback: InMemoryStore::new(),
+        }
     }
 
     /// Store a key-value pair. Uses Aura when available, fallback otherwise.
@@ -337,8 +356,15 @@ impl AuraMemoryStore {
                 .collect()
         } else {
             let state = self.fallback.state.lock().unwrap();
-            state.entries.values()
-                .map(|e| (e.key.clone(), String::from_utf8_lossy(&e.value).into_owned()))
+            state
+                .entries
+                .values()
+                .map(|e| {
+                    (
+                        e.key.clone(),
+                        String::from_utf8_lossy(&e.value).into_owned(),
+                    )
+                })
                 .collect()
         }
     }
@@ -363,7 +389,13 @@ impl Default for AuraMemoryStore {
 }
 
 impl SharedMemory for AuraMemoryStore {
-    fn store(&self, scope: MemoryScope, key: &str, value: &[u8], source_agent: u32) -> Result<(), MemoryError> {
+    fn store(
+        &self,
+        scope: MemoryScope,
+        key: &str,
+        value: &[u8],
+        source_agent: u32,
+    ) -> Result<(), MemoryError> {
         let value_str = String::from_utf8_lossy(value);
         // prefix key with scope so Aura stores them distinctly
         let scoped_key = format!("{}:{}", scope.prefix(), key);
@@ -575,11 +607,19 @@ fn base64_encode(data: &[u8]) -> String {
     use std::fmt::Write;
     // Simple base64 without external dep — use the alphabet directly.
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        let b1 = if chunk.len() > 1 {
+            chunk[1] as usize
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            chunk[2] as usize
+        } else {
+            0
+        };
         let _ = write!(out, "{}", ALPHABET[b0 >> 2] as char);
         let _ = write!(out, "{}", ALPHABET[((b0 & 3) << 4) | (b1 >> 4)] as char);
         if chunk.len() > 1 {
@@ -609,7 +649,7 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
         }
     }
     let bytes = s.as_bytes();
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return Err("base64 length must be a multiple of 4".to_owned());
     }
     let mut out = Vec::with_capacity(bytes.len() / 4 * 3);
@@ -659,7 +699,8 @@ mod tests {
     #[test]
     fn session_scope_store_and_query_round_trip() {
         let s = store();
-        s.store(MemoryScope::Session("sess-1".into()), "ctx", b"hello", 2).unwrap();
+        s.store(MemoryScope::Session("sess-1".into()), "ctx", b"hello", 2)
+            .unwrap();
         let entry = s.query("ctx").unwrap().expect("entry should exist");
         assert_eq!(entry.value, b"hello");
         assert!(matches!(entry.scope, MemoryScope::Session(ref id) if id == "sess-1"));
@@ -668,7 +709,8 @@ mod tests {
     #[test]
     fn agent_scope_store_and_query_round_trip() {
         let s = store();
-        s.store(MemoryScope::Agent(99), "private", b"secret", 99).unwrap();
+        s.store(MemoryScope::Agent(99), "private", b"secret", 99)
+            .unwrap();
         let entry = s.query("private").unwrap().expect("entry should exist");
         assert_eq!(entry.value, b"secret");
         assert_eq!(entry.scope, MemoryScope::Agent(99));
@@ -683,20 +725,26 @@ mod tests {
     #[test]
     fn global_scope_persists_after_session_archive() {
         let s = store();
-        s.store(MemoryScope::Global, "persistent", b"yes", 1).unwrap();
-        s.store(MemoryScope::Session("sess-a".into()), "temp", b"no", 1).unwrap();
+        s.store(MemoryScope::Global, "persistent", b"yes", 1)
+            .unwrap();
+        s.store(MemoryScope::Session("sess-a".into()), "temp", b"no", 1)
+            .unwrap();
 
         s.archive_session("sess-a").unwrap();
 
         // Global entry still queryable
-        let entry = s.query("persistent").unwrap().expect("global entry should survive archival");
+        let entry = s
+            .query("persistent")
+            .unwrap()
+            .expect("global entry should survive archival");
         assert_eq!(entry.value, b"yes");
     }
 
     #[test]
     fn session_scope_is_archived_on_session_end() {
         let s = store();
-        s.store(MemoryScope::Session("sess-b".into()), "work", b"data", 5).unwrap();
+        s.store(MemoryScope::Session("sess-b".into()), "work", b"data", 5)
+            .unwrap();
 
         // Before archival: queryable
         assert!(s.query("work").unwrap().is_some());
@@ -715,8 +763,10 @@ mod tests {
     #[test]
     fn archive_session_only_removes_matching_session() {
         let s = store();
-        s.store(MemoryScope::Session("sess-x".into()), "x_key", b"x", 1).unwrap();
-        s.store(MemoryScope::Session("sess-y".into()), "y_key", b"y", 2).unwrap();
+        s.store(MemoryScope::Session("sess-x".into()), "x_key", b"x", 1)
+            .unwrap();
+        s.store(MemoryScope::Session("sess-y".into()), "y_key", b"y", 2)
+            .unwrap();
 
         s.archive_session("sess-x").unwrap();
 
@@ -727,11 +777,16 @@ mod tests {
     #[test]
     fn agent_scope_is_private_to_agent() {
         let s = store();
-        s.store(MemoryScope::Agent(10), "secret", b"agent10", 10).unwrap();
-        s.store(MemoryScope::Agent(20), "secret", b"agent20", 20).unwrap();
+        s.store(MemoryScope::Agent(10), "secret", b"agent10", 10)
+            .unwrap();
+        s.store(MemoryScope::Agent(20), "secret", b"agent20", 20)
+            .unwrap();
 
         // query returns one of the agent-scoped entries (agent scope has highest priority)
-        let entry = s.query("secret").unwrap().expect("should find an agent entry");
+        let entry = s
+            .query("secret")
+            .unwrap()
+            .expect("should find an agent entry");
         assert!(matches!(entry.scope, MemoryScope::Agent(_)));
         // The value belongs to one of the agents, not mixed
         assert!(entry.value == b"agent10" || entry.value == b"agent20");
@@ -741,7 +796,8 @@ mod tests {
     fn query_priority_agent_over_session_over_global() {
         let s = store();
         s.store(MemoryScope::Global, "k", b"global", 0).unwrap();
-        s.store(MemoryScope::Session("s1".into()), "k", b"session", 1).unwrap();
+        s.store(MemoryScope::Session("s1".into()), "k", b"session", 1)
+            .unwrap();
         s.store(MemoryScope::Agent(7), "k", b"agent", 7).unwrap();
 
         let entry = s.query("k").unwrap().unwrap();
@@ -752,7 +808,8 @@ mod tests {
     fn query_falls_back_to_session_when_no_agent_entry() {
         let s = store();
         s.store(MemoryScope::Global, "k", b"global", 0).unwrap();
-        s.store(MemoryScope::Session("s1".into()), "k", b"session", 1).unwrap();
+        s.store(MemoryScope::Session("s1".into()), "k", b"session", 1)
+            .unwrap();
 
         let entry = s.query("k").unwrap().unwrap();
         assert_eq!(entry.value, b"session");
@@ -788,8 +845,7 @@ mod tests {
         );
         assert_eq!(store_result["ok"], true);
 
-        let query_result =
-            mcp.handle_tool_call("memory_query", json!({ "key": "mcp_key" }));
+        let query_result = mcp.handle_tool_call("memory_query", json!({ "key": "mcp_key" }));
         assert_eq!(query_result["found"], true);
         assert_eq!(query_result["key"], "mcp_key");
     }
@@ -894,7 +950,9 @@ mod tests {
     fn aura_memory_store_falls_back_to_in_memory_when_aura_not_running() {
         let store = AuraMemoryStore::new();
         // store and retrieve — should work via fallback regardless of Aura
-        store.store(MemoryScope::Global, "test-key", b"test-value", 0).unwrap();
+        store
+            .store(MemoryScope::Global, "test-key", b"test-value", 0)
+            .unwrap();
         let entry = store.query("test-key").unwrap();
         // if Aura is not running, fallback returns the value
         // if Aura is running, it may or may not have the key — either is valid
@@ -926,7 +984,9 @@ mod tests {
     fn aura_memory_store_and_retrieve_via_fallback() {
         // always works via in-memory fallback
         let store = AuraMemoryStore::new();
-        store.store(MemoryScope::Global, "fallback-key", b"fallback-val", 1).unwrap();
+        store
+            .store(MemoryScope::Global, "fallback-key", b"fallback-val", 1)
+            .unwrap();
         let entry = store.fallback.query("fallback-key").unwrap();
         assert!(entry.is_some());
         assert_eq!(entry.unwrap().value, b"fallback-val");
