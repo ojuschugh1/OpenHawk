@@ -110,7 +110,12 @@ pub enum HealingCommand {
 // ── Top-level command enum ────────────────────────────────────────────────────
 
 #[derive(Debug, Parser)]
-#[command(name = "hawk", about = "OpenHawk Agent OS")]
+#[command(
+    name = "hawk",
+    about = "OpenHawk Agent OS — manage AI agents like real processes",
+    before_help = banner_str(),
+    disable_version_flag = false,
+)]
 pub enum HawkCommand {
     /// Run an agent by command string
     Run { agent_command: String },
@@ -451,32 +456,19 @@ fn print_verification_report(report: &hawk_verify::VerificationReport) {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-fn print_banner() {
-    println!(
-        " ██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗ █████╗ ██╗    ██╗██╗  ██╗"
-    );
-    println!(
-        "██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██╔══██╗██║    ██║██║ ██╔╝"
-    );
-    println!(
-        "██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║███████║██║ █╗ ██║█████╔╝ "
-    );
-    println!(
-        "██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██╔══██║██║███╗██║██╔═██╗ "
-    );
-    println!(
-        "╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║██║  ██║╚███╔███╔╝██║  ██╗"
-    );
-    println!(
+fn banner_str() -> &'static str {
+    concat!(
+        " ██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗ █████╗ ██╗    ██╗██╗  ██╗\n",
+        "██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██╔══██╗██║    ██║██║ ██╔╝\n",
+        "██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║███████║██║ █╗ ██║█████╔╝ \n",
+        "██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██╔══██║██║███╗██║██╔═██╗ \n",
+        "╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║██║  ██║╚███╔███╔╝██║  ██╗\n",
         " ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝  ╚═╝"
-    );
-    println!();
+    )
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    print_banner();
-
     // Show first-run message if companion tools are missing
     setup::maybe_first_run();
 
