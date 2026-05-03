@@ -4,7 +4,7 @@
 # Safe to re-run — already-published crates are skipped automatically.
 set -e
 
-WAIT=30
+WAIT=60  # crates.io rate-limits new accounts to ~10 crates/day; space them out
 
 publish() {
   local crate=$1
