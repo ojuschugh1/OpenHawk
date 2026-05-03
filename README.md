@@ -14,82 +14,85 @@
   <a href="https://github.com/ojuschugh1/openhawk/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
 
-<p align="center">
-  <img src="demos/openhawk_demo.gif" alt="OpenHawk demo" width="800">
-</p>
+OpenHawk is a local-first Agent Operating System built in Rust. It manages AI agents as first-class OS processes — filesystem safety through Copy-on-Write snapshots, inter-agent communication over a JSON-RPC bus, per-agent permission sandboxing, encrypted secrets management, and a TUI dashboard for real-time observability.
 
-OpenHawk is a local-first Agent Operating System built in Rust. It manages AI agents as first-class OS processes, providing filesystem safety through Copy-on-Write snapshots, inter-agent communication over a JSON-RPC bus, per-agent permission sandboxing, encrypted secrets management, and a TUI dashboard for real-time observability.
-
-It works with any agent framework: CrewAI, LangGraph, AutoGen, custom scripts, or anything that runs as a process.
+Works with any agent framework: CrewAI, LangGraph, AutoGen, custom scripts, or anything that runs as a process.
 
 ---
 
-INSTALL
+## Demo
 
-The fastest way — install directly from crates.io (no git clone needed):
+<p align="center">
+  <img src="demos/openhawk_demo.gif" alt="OpenHawk full demo" width="860">
+</p>
 
-    cargo install openhawk
+---
 
-This puts the `hawk` binary in `~/.cargo/bin/`. Make sure that's on your PATH:
+## Install
 
-    export PATH="$HOME/.cargo/bin:$PATH"
+The fastest way — no git clone needed:
 
-Verify it works:
+```bash
+cargo install openhawk
+```
 
-    openhawk --help
+This puts the `openhawk` binary in `~/.cargo/bin/`. Make sure that's on your PATH:
 
-First run will check for companion tools and prompt you to install them:
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+```
 
-    openhawk setup --yes
+Verify:
+
+```bash
+openhawk --help
+```
+
+On first run, OpenHawk checks for companion tools and prompts you to install them:
+
+```bash
+openhawk setup --yes
+```
 
 That installs sqz, ghostdep, claimcheck, etch, and aura into `~/.local/bin/`.
 
 ---
 
-INSTALL FROM SOURCE
+## Install from source
 
-If you want to build from source or contribute:
+```bash
+git clone https://github.com/ojuschugh1/openhawk
+cd openhawk
+cargo build --release
+cargo install --path hawk-cli
+```
 
-Prerequisites:
-- Rust 1.75+: https://rustup.rs
-- Git
-
-    git clone https://github.com/ojuschugh1/openhawk
-    cd openhawk
-    cargo build --release
-    cargo install --path hawk-cli
+Prerequisites: Rust 1.75+ from https://rustup.rs
 
 ---
 
-COMPANION TOOLS
+## Companion tools
 
-OpenHawk integrates with these tools for full functionality. Run `openhawk setup --yes` to install them all automatically, or install individually:
+OpenHawk integrates with these tools for full functionality:
 
-    sqz         token compression (60-92% savings on repeated reads)
-    ghostdep    phantom dependency detector
-    claimcheck  agent claim verifier
-    etch        API drift detector
-    aura        persistent cross-session memory
+| Tool | What it does |
+|---|---|
+| sqz | LLM token compression — 60-92% savings on repeated reads |
+| ghostdep | Phantom dependency detector |
+| claimcheck | Agent claim verifier |
+| etch | API drift detector |
+| aura | Persistent cross-session memory |
 
-Check what's installed:
-
-    openhawk setup
-
-Install missing tools:
-
-    openhawk setup --yes
-
-Install a specific tool:
-
-    openhawk setup --only sqz --yes
-
-Force reinstall all:
-
-    openhawk setup --force --yes
+```bash
+openhawk setup          # check what's installed
+openhawk setup --yes    # install missing tools
+openhawk setup --only sqz --yes   # install one tool
+openhawk setup --force --yes      # force reinstall all
+```
 
 ---
 
-PLATFORMS
+## Platforms
 
 - macOS 12+ (Apple Silicon and Intel)
 - Linux (kernel 5.10+, x86_64 and aarch64)
@@ -97,614 +100,370 @@ PLATFORMS
 
 ---
 
-QUICK START
+## Quick start
 
-    # spawn an agent
-    openhawk run "python my_agent.py"
-
-    # list running agents
-    openhawk ps
-
-    # store a secret
-    openhawk vault set OPENAI_API_KEY sk-proj-abc123
-
-    # orchestrate a multi-agent task
-    openhawk orchestrate "research quantum computing and write a summary then review it"
-
-    # scaffold a new agent project
-    openhawk sdk init python --name my-agent --output ~/projects
-
-    # see token savings from sqz
-    openhawk stats tokens
+```bash
+openhawk run "python my_agent.py"          # spawn an agent
+openhawk ps                                # list running agents
+openhawk vault set OPENAI_API_KEY sk-...   # store a secret
+openhawk orchestrate "research X then write Y then review it"
+openhawk sdk init python --name my-agent --output ~/projects
+openhawk stats tokens                      # token savings from sqz
+```
 
 ---
 
-CONFIGURATION
+## Secrets vault
 
-OpenHawk reads configuration from ~/.hawk/config.toml. Create one:
+Secrets are encrypted with AES-256-GCM and stored locally. Keys are derived from your system keychain via Argon2id with a random per-vault salt.
 
-    mkdir -p ~/.hawk
-    cat > ~/.hawk/config.toml << 'EOF'
-    [core]
-    log_level = "info"
-    session_retention_days = 30
-    pattern_retention_days = 90
+<p align="center">
+  <img src="demos/vault.gif" alt="Vault demo" width="820">
+</p>
 
-    [privacy]
-    mode = "standard"
-
-    [llm]
-    providers = [
-        { name = "ollama", endpoint = "http://localhost:11434", priority = 1 },
-    ]
-
-    [savepoint]
-    auto_snapshot = true
-    max_snapshots_per_agent = 50
-
-    [healing]
-    max_retries = 3
-    enabled = true
-    EOF
-
-View effective config:
-
-    openhawk config show
-
-Output:
-
-    core.log_level = info
-    core.session_retention_days = 30
-    core.pattern_retention_days = 90
-    privacy.mode = standard
-    savepoint.auto_snapshot = true
-    savepoint.max_snapshots_per_agent = 50
-    healing.max_retries = 3
-    healing.enabled = true
-
-Set a value:
-
-    openhawk config set privacy.mode air-gapped
-
-Show LLM providers:
-
-    openhawk config llm
+```bash
+openhawk vault set OPENAI_API_KEY sk-proj-abc123   # store
+openhawk vault list                                 # list keys (never values)
+openhawk vault get OPENAI_API_KEY                   # inject into environment
+openhawk vault rm OPENAI_API_KEY                    # delete
+```
 
 ---
 
-AGENT LIFECYCLE
+## Agent lifecycle
 
-Spawn an agent (any command):
+Spawn any command as a managed agent — Python, Node, Rust, shell scripts, anything.
 
-![Agent lifecycle demo](demos/agents.gif)
+<p align="center">
+  <img src="demos/agents.gif" alt="Agent lifecycle demo" width="820">
+</p>
 
-    openhawk run "python research_agent.py"
-    openhawk run "node my-agent/dist/index.js"
-    openhawk run "sleep 300"
-
-Output:
-
-    Agent started: pid=42981
-
-List running agents:
-
-    openhawk ps
-
-Output:
-
-    PID    NAME                 STATE      UPTIME
-    42981  python research_a... Running    00:01:23
-
-Pause, resume, stop:
-
-    openhawk pause 42981
-    openhawk resume 42981
-    openhawk stop 42981
+```bash
+openhawk run "python research_agent.py"
+openhawk run "node my-agent/dist/index.js"
+openhawk ps                  # live CPU and memory via sysinfo
+openhawk pause 42981
+openhawk resume 42981
+openhawk stop 42981
+openhawk undo                # roll back filesystem to last snapshot
+openhawk verify sess-abc123  # verify agent claims against evidence
+```
 
 ---
 
-FILESYSTEM SNAPSHOTS (PERCH)
+## Multi-agent orchestration
 
-OpenHawk creates a snapshot before every agent task using OS-native Copy-on-Write (APFS reflinks on macOS, Btrfs COW on Linux, file-copy fallback elsewhere).
+Decompose a task across agents. Use `and` for parallel subtasks, `then` for sequential.
 
-Roll back to a snapshot:
+<p align="center">
+  <img src="demos/orchestrate.gif" alt="Orchestration demo" width="820">
+</p>
 
-    openhawk undo <snapshot-id>
+```bash
+openhawk orchestrate "research quantum computing and write a summary then review it"
+```
 
-View what changed since a snapshot:
-
-    openhawk diff <snapshot-id>
-
-Output:
-
-    M  src/main.rs
-    A  src/new_file.rs
-    D  src/old_file.rs
+Dispatches real `task.run` messages over hawk-bus to each assigned agent and waits for `task.done` / `task.failed` replies (30s timeout). Falls back to local execution for agents without a bus client.
 
 ---
 
-SECRETS VAULT
+## Filesystem snapshots
 
-Secrets are encrypted with AES-256-GCM and stored locally. Keys are derived from your system keychain or a passphrase via Argon2.
+OpenHawk snapshots the working directory before every agent task using OS-native CoW (APFS on macOS, Btrfs on Linux, file-copy fallback elsewhere).
 
-![Vault demo](demos/vault.gif)
+```bash
+openhawk undo <snapshot-id>    # roll back to a snapshot
+openhawk diff <snapshot-id>    # show what changed
+```
 
-Store a secret:
-
-    openhawk vault set OPENAI_API_KEY sk-proj-abc123
-
-List stored keys (values are never shown):
-
-    openhawk vault list
-
-Output:
-
-    OPENAI_API_KEY
-
-Inject into an agent's environment (never printed):
-
-    openhawk vault get OPENAI_API_KEY
-
-Output:
-
-    Vault: OPENAI_API_KEY injected into environment.
-
-Delete a secret:
-
-    openhawk vault rm OPENAI_API_KEY
+```
+M  src/main.rs
+A  src/new_file.rs
+D  src/old_file.rs
+```
 
 ---
 
-MULTI-AGENT ORCHESTRATION
+## Configuration
 
-Decompose a complex task across agents. Use "and" for parallel, "then" for sequential.
+```bash
+openhawk config show                        # view effective config
+openhawk config set privacy.mode air-gapped # set a value
+openhawk config llm                         # show LLM provider status
+```
 
-![Orchestration demo](demos/orchestrate.gif)
+Config file at `~/.hawk/config.toml`:
 
-    openhawk orchestrate "research quantum computing and write a summary then review it"
+```toml
+[core]
+log_level = "info"
+session_retention_days = 30
 
-Output:
+[privacy]
+mode = "standard"   # or "air-gapped"
 
-    Orchestrating: research quantum computing and write a summary then review it
-    Sub-tasks (3):
-      [0] research quantum computing -> agent 42981
-      [1] write a summary -> agent 42981
-      [2] review it -> agent 42981
-    Dependencies:
-      [0] must complete before [2]
-      [1] must complete before [2]
+[llm]
+providers = [
+    { name = "ollama", endpoint = "http://localhost:11434", priority = 1 },
+]
 
-    Executing plan...
-      [0] completed
-      [1] completed
-      [2] completed
+[savepoint]
+auto_snapshot = true
+max_snapshots_per_agent = 50
 
-    All 3 sub-tasks completed successfully.
-
-Orchestration dispatches real task.run messages over hawk-bus to each assigned
-agent and waits for task.done / task.failed replies (30s timeout per subtask).
-Agents that don't have a bus client fall back to local execution automatically.
-
----
-
-SDK SCAFFOLDING
-
-Generate a minimal agent project in your preferred language:
-
-Rust:
-
-    openhawk sdk init rust --name my-research-agent --output ~/projects
-
-Python:
-
-    openhawk sdk init python --name data-pipeline --output ~/projects
-
-TypeScript:
-
-    openhawk sdk init typescript --name web-scraper --output ~/projects
-
-Each scaffold includes:
-- Agent_Manifest.toml (permissions, resources, capabilities)
-- Entry point with hawk-bus client, handler registration, pub/sub loop
-- Build config (Cargo.toml / requirements.txt / package.json)
-
-Example generated Agent_Manifest.toml:
-
-    [agent]
-    name = "my-research-agent"
-    version = "0.1.0"
-    description = ""
-    framework = "custom"
-    entry_command = "cargo run"
-
-    [permissions]
-    filesystem = []
-    network = []
-    commands = []
-    secrets = []
-
-    [resources]
-    cpu_percent = 25
-    memory_mb = 256
-    max_open_fds = 32
+[healing]
+max_retries = 3
+enabled = true
+```
 
 ---
 
-MESSAGE BUS
+## SDK scaffolding
 
-Agents communicate over a JSON-RPC 2.0 bus. Inspect active topics:
+```bash
+openhawk sdk init rust       --name my-agent --output ~/projects
+openhawk sdk init python     --name my-agent --output ~/projects
+openhawk sdk init typescript --name my-agent --output ~/projects
+```
 
-    openhawk bus inspect
-
-Output:
-
-    No active topics. Pending messages (direct): 0
-
-The bus supports:
-- Pub/sub topic routing (deliver to all subscribers)
-- Direct messaging by process ID
-- Offline queuing (messages held until target agent resumes)
-- Message expiration with configurable retention
+Each scaffold includes `Agent_Manifest.toml`, an entry point with hawk-bus client, and the appropriate build config.
 
 ---
 
-MONITORING AND OBSERVABILITY
+## Message bus
 
-Watch report (API drift + phantom dependencies):
+Agents communicate over a JSON-RPC 2.0 bus with pub/sub, direct messaging, and offline queuing.
 
-    openhawk watch report
-
-Token compression stats (real data from sqz when installed):
-
-    openhawk stats tokens
-
-Cost tracking per agent:
-
-    openhawk stats cost
-
-Live CPU and memory per agent:
-
-    openhawk ps
-
-Output:
-
-    PID    NAME                 STATE      UPTIME
-    42981  python research_a... Running    00:01:23   CPU: 2.1%   MEM: 48MB
+```bash
+openhawk bus inspect   # show active topics and queue depths
+```
 
 ---
 
-CROSS-DEVICE SYNC
+## Monitoring
 
-Sync agents and memory across devices over LAN. All data is encrypted with AES-256-GCM.
-
-Enable sync:
-
-    openhawk sync enable "my-shared-secret-phrase"
-
-Mark items for selective sync:
-
-    openhawk sync select my-research-agent
-    openhawk sync select memory:research-namespace
-
-Check status:
-
-    openhawk sync status
-
-Set conflict resolution strategy:
-
-    openhawk sync resolve --strategy last-write
-
-Options: last-write, manual, merge
+```bash
+openhawk watch report    # API drift + phantom dependency report
+openhawk stats tokens    # real compression stats from sqz
+openhawk stats cost      # per-agent token cost breakdown
+openhawk ps              # live CPU% and memory per agent
+```
 
 ---
 
-PATTERN DETECTION
+## Cross-device sync
+
+Sync agents and memory across devices over LAN. All data encrypted with AES-256-GCM.
+
+```bash
+openhawk sync enable "shared-secret"
+openhawk sync select my-research-agent
+openhawk sync select memory:research-namespace
+openhawk sync status
+openhawk sync resolve --strategy last-write   # or: manual, merge
+```
+
+---
+
+## Pattern detection
 
 OpenHawk detects repeated action sequences and offers to automate them.
 
-List detected patterns:
-
-    openhawk patterns list
-
-Accept a pattern (generates an Agent_Manifest):
-
-    openhawk patterns accept <pattern-id>
-
-Decline (suppresses future offers):
-
-    openhawk patterns decline <pattern-id>
-
-Re-enable declined patterns:
-
-    openhawk patterns reset
+```bash
+openhawk patterns list
+openhawk patterns accept <pattern-id>   # generates an Agent_Manifest
+openhawk patterns decline <pattern-id>
+openhawk patterns reset
+```
 
 ---
 
-SELF-HEALING
+## Self-healing
 
-When an agent fails, OpenHawk rolls back to the most recent snapshot, restoring
-all files to their pre-task state, then returns a Recovered outcome so the
-daemon can respawn the agent. Up to max_retries attempts are made before
-escalating.
+When an agent fails, OpenHawk rolls back to the most recent snapshot and retries up to `max_retries` times before escalating.
 
-View healing history for an agent:
-
-    openhawk healing history <agent-pid>
+```bash
+openhawk healing history <agent-pid>
+openhawk healing status
+```
 
 ---
 
-TALON PLUGIN SYSTEM
+## Talon plugins
 
-Talons are community-contributed plugins (browser automation, Slack, GitHub, etc.).
-
-Install a Talon:
-
-    openhawk talon install browser-talon
-
-List installed Talons:
-
-    openhawk talon list
+```bash
+openhawk talon install browser-talon
+openhawk talon list
+```
 
 Talons are signature-verified before loading. A failing Talon is isolated and cannot crash the kernel.
 
 ---
 
-HAWKNEST MARKETPLACE
+## HawkNest marketplace
 
-Search for community packages:
-
-    openhawk nest search "browser automation"
-
-Install a package:
-
-    openhawk nest install browser-talon
-
-Publish your own:
-
-    openhawk nest publish ./my-agent/
-
-Packages are validated (Agent_Manifest.toml required, semver enforced) and signature-verified.
+```bash
+openhawk nest search "browser automation"
+openhawk nest install browser-talon
+openhawk nest publish ./my-agent/
+```
 
 ---
 
-HAWKEYE TUI DASHBOARD
+## HawkEye TUI
 
-Launch the full-screen terminal dashboard:
+```bash
+openhawk eye
+```
 
-    openhawk eye
-
-Keyboard shortcuts:
-- j/k or arrows: navigate agent list
-- Enter: open agent detail
-- u: undo (rollback) for selected agent
-- /: search
-- Tab: switch panels (Dashboard -> Alerts -> Orchestration Graph)
-- q: quit
+Keyboard shortcuts: `j`/`k` navigate, `Enter` open detail, `u` undo, `/` search, `Tab` switch panels, `q` quit.
 
 ---
 
-AIR-GAPPED MODE
+## Session replay
 
-Block all outbound network requests:
-
-    openhawk config set privacy.mode air-gapped
-
-In air-gapped mode:
-- All LLM requests route to local providers only (Ollama, llama.cpp)
-- HawkNest operates from local cache only
-- All outbound network attempts are denied and logged
-
-Disable:
-
-    openhawk config set privacy.mode standard
+```bash
+openhawk replay <session-id>           # full session log
+openhawk replay <session-id> --step 5  # state at step 5
+```
 
 ---
 
-SESSION REPLAY
+## Air-gapped mode
 
-Replay an agent session step by step:
+```bash
+openhawk config set privacy.mode air-gapped
+```
 
-    openhawk replay <session-id>
-
-Output:
-
-    Session: sess-abc123
-    ------------------------------------------------------------------------
-    Step    1  2026-05-03T10:00:01Z  pid=42981  file_read
-    Step    2  2026-05-03T10:00:02Z  pid=42981  api_call
-    Step    3  2026-05-03T10:00:03Z  pid=42981  file_write
-
-Jump to a specific step (shows full context at that point):
-
-    openhawk replay <session-id> --step 2
+All LLM requests route to local providers only (Ollama, llama.cpp). HawkNest uses local cache. All outbound network attempts are denied and logged.
 
 ---
 
-VERIFICATION
+## Project structure
 
-Verify that an agent actually completed what it claimed:
-
-    openhawk verify <session-id>
-
-Output:
-
-    Session: sess-abc123
-    Status: Verified
-
-    Claims:
-      [PASS] file_write: /tmp/output.txt
-      [PASS] api_call: https://api.openai.com/v1/chat
-
----
-
-PROJECT STRUCTURE
-
-    openhawk/
-    |-- hawk-cli/          openhawk binary (clap CLI)
-    |-- hawk-core/         kernel: lifecycle, permissions, orchestration,
-    |                      config, patterns, healing, LLM routing, sessions
-    |-- hawk-savepoint/    filesystem snapshots (Perch)
-    |-- hawk-vault/        AES-256-GCM encrypted secrets
-    |-- hawk-bus/          JSON-RPC 2.0 message bus
-    |-- hawk-memory/       shared memory (Aura bridge)
-    |-- hawk-verify/       post-task verification (ClaimCheck bridge)
-    |-- hawk-compress/     token compression (SQZ bridge)
-    |-- hawk-watch/        API drift + dependency scanning (Etch/GhostDep)
-    |-- hawk-ui/           ratatui TUI dashboard (HawkEye)
-    |-- hawk-nest/         marketplace client (HawkNest)
-    |-- hawk-sync/         cross-device sync
-    |-- hawk-sdk-rust/     Rust SDK + Python/TypeScript binding stubs
+```
+openhawk/
+├── hawk-cli/        openhawk binary (clap CLI)
+├── hawk-core/       kernel: lifecycle, orchestration, config, healing, patterns
+├── hawk-savepoint/  CoW filesystem snapshots
+├── hawk-vault/      AES-256-GCM encrypted secrets
+├── hawk-bus/        JSON-RPC 2.0 message bus
+├── hawk-memory/     shared memory (Aura bridge)
+├── hawk-verify/     claim verification (ClaimCheck bridge)
+├── hawk-compress/   token compression (sqz bridge)
+├── hawk-watch/      API drift + dependency scanning (etch/ghostdep)
+├── hawk-ui/         ratatui TUI dashboard
+├── hawk-nest/       marketplace client
+├── hawk-sync/       cross-device sync
+└── hawk-sdk-rust/   SDK + Python/TypeScript scaffolding
+```
 
 ---
 
-AGENT MANIFEST FORMAT
+## Agent manifest
 
-Every agent declares its permissions and resource limits in a TOML manifest:
+```toml
+[agent]
+name = "research-agent"
+version = "1.0.0"
+framework = "langraph"
+entry_command = "python research_agent.py"
 
-    [agent]
-    name = "research-agent"
-    version = "1.0.0"
-    description = "Researches topics and produces summaries"
-    framework = "langraph"
-    entry_command = "python research_agent.py"
+[permissions]
+filesystem = ["~/projects/research/**", "/tmp/hawk-scratch/**"]
+network    = ["https://api.openai.com/*"]
+commands   = ["curl", "python3"]
+secrets    = ["OPENAI_API_KEY"]
 
-    [permissions]
-    filesystem = ["~/projects/research/**", "/tmp/hawk-scratch/**"]
-    network = ["https://api.openai.com/*", "https://scholar.google.com/*"]
-    commands = ["curl", "python3"]
-    secrets = ["OPENAI_API_KEY"]
+[resources]
+cpu_percent = 25
+memory_mb   = 512
+max_open_fds = 64
 
-    [resources]
-    cpu_percent = 25
-    memory_mb = 512
-    max_open_fds = 64
+[llm]
+provider      = "openai"
+budget_tokens = 1000000
 
-    [llm]
-    provider = "openai"
-    privacy = "cloud"
-    budget_tokens = 1000000
-
-    [talons]
-    required = ["browser-talon", "github-talon"]
-
-    [capabilities]
-    tags = ["research", "summarization", "web-search"]
+[capabilities]
+tags = ["research", "summarization", "web-search"]
+```
 
 ---
 
-RUNNING TESTS
+## Running tests
 
-Run the full test suite (490 tests):
-
-    cd openhawk
-    cargo test
-
-Run tests for a specific crate:
-
-    cargo test -p hawk-core
-    cargo test -p hawk-savepoint
-    cargo test -p hawk-vault
-    cargo test -p hawk-bus
-
-Run a specific test:
-
-    cargo test -p hawk-core -- orchestrator::tests::then_produces_sequential_dependency
+```bash
+cargo test                          # all 492 tests
+cargo test -p hawk-core             # specific crate
+cargo test -p hawk-vault
+cargo test -p hawk-bus
+```
 
 ---
 
-DEVELOPMENT
+## Development
 
-Build in debug mode:
+```bash
+cargo build                         # debug
+cargo build --release               # release
+cargo install --path hawk-cli       # install from source
+cargo install openhawk              # install from crates.io
+```
 
-    cargo build
-
-Build in release mode:
-
-    cargo build --release
-
-Install locally from source:
-
-    cargo install --path hawk-cli
-
-Install from crates.io:
-
-    cargo install openhawk
-
-The binary is placed at ~/.cargo/bin/hawk.
+Binary installs to `~/.cargo/bin/openhawk`.
 
 ---
 
-DATA STORAGE
+## Data storage
 
-OpenHawk stores all persistent data locally:
-
-    ~/Library/Application Support/hawk/hawk.db    SQLite database (macOS)
-    ~/.local/share/hawk/hawk.db                   SQLite database (Linux)
-    ~/.hawk/config.toml                           Global configuration
-    ~/.hawk/vault.enc                             Encrypted secrets vault
+```
+~/Library/Application Support/hawk/hawk.db   SQLite (macOS)
+~/.local/share/hawk/hawk.db                  SQLite (Linux)
+~/.hawk/config.toml                          config
+~/.hawk/vault.enc                            encrypted secrets
+```
 
 No data leaves your machine unless you explicitly enable sync or use cloud LLM providers.
 
 ---
 
-COMMAND REFERENCE
+## Command reference
 
-    openhawk run <command>                    Spawn an agent process
-    openhawk stop <pid>                       Stop an agent (graceful, then force)
-    openhawk pause <pid>                      Suspend an agent
-    openhawk resume <pid>                     Resume a suspended agent
-    openhawk ps                               List managed agents
+```
+openhawk run <cmd>                     spawn an agent
+openhawk stop/pause/resume <pid>       lifecycle control
+openhawk ps                            list agents with CPU/memory
 
-    openhawk undo [snapshot-id]               Roll back to a snapshot
-    openhawk diff <snapshot-id>               Show file changes since snapshot
+openhawk undo [snapshot-id]            roll back filesystem
+openhawk diff <snapshot-id>            show changes since snapshot
 
-    openhawk vault set <key> <value>          Store an encrypted secret
-    openhawk vault get <key>                  Inject secret into environment
-    openhawk vault rm <key>                   Delete a secret
-    openhawk vault list                       List key names
+openhawk vault set/get/rm/list         secrets management
 
-    openhawk config show                      Show effective configuration
-    openhawk config set <key> <value>         Set a config value
-    openhawk config llm                       Show LLM provider status
+openhawk config show/set/llm           configuration
 
-    openhawk orchestrate <task>               Decompose and execute a multi-agent task
-    openhawk trust <agent-name>               Bypass permission checks for session
+openhawk orchestrate <task>            multi-agent task decomposition
+openhawk trust <agent>                 bypass permission checks
 
-    openhawk verify <session-id>              Verify agent claims against evidence
-    openhawk replay <session-id> [--step N]   Replay a session
+openhawk verify <session-id>           verify agent claims
+openhawk replay <session-id>           replay session
 
-    openhawk bus inspect                      Show bus topics and queue depths
-    openhawk watch report                     API drift and dependency report
-    openhawk stats tokens                     Token compression stats
-    openhawk stats cost                       Per-agent cost breakdown
+openhawk bus inspect                   message bus status
+openhawk watch report                  API drift + dependency report
+openhawk stats tokens/cost             compression and cost stats
 
-    openhawk talon install <name>             Install a plugin
-    openhawk talon list                       List installed plugins
+openhawk talon install/list            plugin management
+openhawk nest search/install/publish   marketplace
 
-    openhawk nest search <query>              Search marketplace
-    openhawk nest install <name>              Install a package
-    openhawk nest publish <path>              Publish a package
-
-    openhawk sdk init <lang> --name <name>    Scaffold an agent project
-    openhawk sdk info                         Show SDK version
-
-    openhawk sync enable <secret>             Enable cross-device sync
-    openhawk sync select <item>               Mark item for sync
-    openhawk sync status                      Show sync status
-    openhawk sync resolve --strategy <s>      Set conflict resolution
-
-    openhawk patterns list                    Show detected patterns
-    openhawk patterns accept <id>             Accept and automate a pattern
-    openhawk patterns decline <id>            Suppress a pattern
-    openhawk patterns reset                   Re-enable declined patterns
-
-    openhawk healing history <pid>            Show self-healing events
-    openhawk healing status                   Show healing status
-
-    openhawk eye                              Launch TUI dashboard
+openhawk sdk init <lang>               scaffold agent project
+openhawk sync enable/select/status     cross-device sync
+openhawk patterns list/accept/decline  pattern automation
+openhawk healing history/status        self-healing events
+openhawk eye                           TUI dashboard
+openhawk setup [--yes] [--only <tool>] install companion tools
+```
 
 ---
 
-LICENSE
+## License
 
 MIT

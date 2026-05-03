@@ -1,46 +1,32 @@
 #!/usr/bin/env bash
 # mock_hawk.sh — deterministic demo output for VHS recordings
-# Never depends on real agent processes, always instant, never fails.
-
-banner() {
-cat << 'BANNER'
- ██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗ █████╗ ██╗    ██╗██╗  ██╗
-██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██╔══██╗██║    ██║██║ ██╔╝
-██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║███████║██║ █╗ ██║█████╔╝ 
-██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██╔══██║██║███╗██║██╔═██╗ 
-╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║██║  ██║╚███╔███╔╝██║  ██╗
- ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝  ╚═╝
-
-BANNER
-}
+# Mirrors the real openhawk binary: no banner on normal commands.
 
 cmd="$*"
 
 case "$cmd" in
 
   "vault set OPENAI_API_KEY sk-proj-abc123")
-    banner; echo "Vault: set OPENAI_API_KEY" ;;
+    echo "Vault: set OPENAI_API_KEY" ;;
 
   "vault list")
-    banner; echo "OPENAI_API_KEY" ;;
+    echo "OPENAI_API_KEY" ;;
 
   "vault get OPENAI_API_KEY")
-    banner; echo "Vault: OPENAI_API_KEY injected into environment." ;;
+    echo "Vault: OPENAI_API_KEY injected into environment." ;;
 
   "vault rm OPENAI_API_KEY")
-    banner; echo "Vault: removed OPENAI_API_KEY" ;;
+    echo "Vault: removed OPENAI_API_KEY" ;;
 
   run\ *)
-    banner; echo "Agent started: pid=42981" ;;
+    echo "Agent started: pid=42981" ;;
 
   "ps")
-    banner
     printf "%-8s %-24s %-10s %-10s %-8s %s\n" "PID" "NAME" "STATE" "UPTIME" "CPU%" "MEM"
     printf "%-8s %-24s %-10s %-10s %-8s %s\n" "42981" "python research_a..." "Running" "00:01:23" "2.1%" "48MB"
     ;;
 
   orchestrate\ *)
-    banner
     task="${cmd#orchestrate }"
     task="${task%\"}"; task="${task#\"}"
     echo "Orchestrating: $task"
@@ -56,11 +42,11 @@ case "$cmd" in
     sleep 0.25; echo "  [0] ✓ completed"
     sleep 0.25; echo "  [1] ✓ completed"
     sleep 0.25; echo "  [2] ✓ completed"
-    echo ""; echo "All 3 sub-tasks completed successfully."
+    echo ""
+    echo "All 3 sub-tasks completed successfully."
     ;;
 
   "undo")
-    banner
     echo "Rolled back to snapshot snap-a1b2c3 (3 files restored)."
     echo ""
     echo "M  research_notes.txt"
@@ -69,14 +55,12 @@ case "$cmd" in
     ;;
 
   "healing history 42981")
-    banner
-    printf "%-4s %-28s %-20s %-8s %s\n" "ID" "TIMESTAMP" "ADJUSTMENT" "ATTEMPT" "OUTCOME"
+    printf "%-4s %-28s %-24s %-8s %s\n" "ID" "TIMESTAMP" "ADJUSTMENT" "ATTEMPT" "OUTCOME"
     printf "%s\n" "----------------------------------------------------------------------"
-    printf "%-4s %-28s %-20s %-8s %s\n" "1" "2026-05-03T14:01:22+00:00" "reduce_context+rollback" "1" "Success"
+    printf "%-4s %-28s %-24s %-8s %s\n" "1" "2026-05-03T14:01:22+00:00" "reduce_context+rollback" "1" "Success"
     ;;
 
   "verify sess-abc123")
-    banner
     echo "Session: sess-abc123"
     echo "Status: Verified"
     echo ""
@@ -87,7 +71,6 @@ case "$cmd" in
     ;;
 
   "stats tokens")
-    banner
     echo "sqz is installed — showing real compression stats:"
     echo ""
     echo "┌─────────────────────────┬──────────────────┐"
@@ -100,7 +83,6 @@ case "$cmd" in
     ;;
 
   "config show")
-    banner
     echo "core.log_level = info"
     echo "core.session_retention_days = 30"
     echo "privacy.mode = standard"
@@ -110,7 +92,6 @@ case "$cmd" in
     ;;
 
   "watch report")
-    banner
     echo "Watch Report — generated at 2026-05-03T14:07:15+00:00"
     echo "============================================================"
     echo ""
@@ -121,7 +102,20 @@ case "$cmd" in
     echo "  (none)"
     ;;
 
+  "setup")
+    printf "%-14s %-12s %s\n" "TOOL" "STATUS" "DESCRIPTION"
+    printf "%s\n" "----------------------------------------------------------------------"
+    printf "%-14s %-12s %s\n" "sqz"        "installed" "LLM token compression"
+    printf "%-14s %-12s %s\n" "ghostdep"   "installed" "Phantom dependency detector"
+    printf "%-14s %-12s %s\n" "claimcheck" "installed" "Agent claim verifier"
+    printf "%-14s %-12s %s\n" "etch"       "missing"   "API drift detector"
+    printf "%-14s %-12s %s\n" "aura"       "installed" "Persistent cross-session memory"
+    echo ""
+    echo "Installing etch... done (4s)"
+    echo "Setup complete: 1 installed, 0 failed."
+    ;;
+
   *)
-    banner; echo "hawk: unknown command '$cmd'" ;;
+    echo "openhawk: unknown command '$cmd'" ;;
 
 esac
