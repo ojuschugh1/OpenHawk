@@ -1,7 +1,14 @@
 [package]
 name = "hawk-memory"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Persistent cross-session memory store for OpenHawk agents — wraps aura"
+keywords = ["memory", "agent", "ai", "aura", "storage"]
+categories = ["database", "command-line-utilities"]
 
 [dependencies]
 serde = { workspace = true }

@@ -1,7 +1,14 @@
 [package]
 name = "hawk-cli"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "OpenHawk Agent OS — manage AI agents as real OS processes"
+keywords = ["agent", "ai", "cli", "os", "llm"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "hawk"
@@ -11,17 +18,17 @@ path = "src/main.rs"
 clap = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
-hawk-core = { path = "../hawk-core" }
-hawk-savepoint = { path = "../hawk-savepoint" }
-hawk-vault = { path = "../hawk-vault" }
+hawk-core = { path = "../hawk-core", version = "0.1.0" }
+hawk-savepoint = { path = "../hawk-savepoint", version = "0.1.0" }
+hawk-vault = { path = "../hawk-vault", version = "0.1.0" }
 serde_json = { workspace = true }
 rusqlite = { workspace = true }
-hawk-bus = { path = "../hawk-bus" }
-hawk-verify = { path = "../hawk-verify" }
-hawk-compress = { path = "../hawk-compress" }
-hawk-watch = { path = "../hawk-watch" }
+hawk-bus = { path = "../hawk-bus", version = "0.1.0" }
+hawk-verify = { path = "../hawk-verify", version = "0.1.0" }
+hawk-compress = { path = "../hawk-compress", version = "0.1.0" }
+hawk-watch = { path = "../hawk-watch", version = "0.1.0" }
 dirs-next = { workspace = true }
-hawk-ui = { path = "../hawk-ui" }
-hawk-sdk-rust = { path = "../hawk-sdk-rust" }
-hawk-nest = { path = "../hawk-nest" }
-hawk-sync = { path = "../hawk-sync" }
+hawk-ui = { path = "../hawk-ui", version = "0.1.0" }
+hawk-sdk-rust = { path = "../hawk-sdk-rust", version = "0.1.0" }
+hawk-nest = { path = "../hawk-nest", version = "0.1.0" }
+hawk-sync = { path = "../hawk-sync", version = "0.1.0" }

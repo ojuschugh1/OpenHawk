@@ -1,7 +1,14 @@
 [package]
 name = "hawk-watch"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "API drift and phantom dependency detection for OpenHawk — wraps ghostdep and etch"
+keywords = ["drift", "dependencies", "agent", "ghostdep", "ai"]
+categories = ["development-tools", "command-line-utilities"]
 
 [dependencies]
 rusqlite = { workspace = true }

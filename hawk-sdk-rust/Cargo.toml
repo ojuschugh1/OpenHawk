@@ -1,11 +1,18 @@
 [package]
 name = "hawk-sdk-rust"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "SDK and project scaffold generator for OpenHawk agents (Rust, Python, TypeScript)"
+keywords = ["agent", "sdk", "scaffold", "ai", "codegen"]
+categories = ["development-tools", "command-line-utilities"]
 
 [dependencies]
-hawk-bus = { path = "../hawk-bus" }
-hawk-memory = { path = "../hawk-memory" }
+hawk-bus = { path = "../hawk-bus", version = "0.1.0" }
+hawk-memory = { path = "../hawk-memory", version = "0.1.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

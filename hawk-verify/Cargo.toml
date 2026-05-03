@@ -1,7 +1,14 @@
 [package]
 name = "hawk-verify"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Agent claim verification engine — wraps claimcheck for OpenHawk sessions"
+keywords = ["verification", "agent", "claims", "ai", "audit"]
+categories = ["development-tools", "command-line-utilities"]
 
 [dependencies]
 rusqlite = { workspace = true }
