@@ -811,7 +811,8 @@ async fn run(cmd: HawkCommand) -> anyhow::Result<()> {
             use hawk_core::db::init_database;
 
             let db = init_database(&db_path())?;
-            let mut orchestrator = Orchestrator::new();
+            let bus = hawk_bus::MessageBus::new();
+            let mut orchestrator = Orchestrator::with_bus(bus.clone());
 
             // Load registered agents from the database and register their capabilities.
             {
