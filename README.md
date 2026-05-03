@@ -271,6 +271,10 @@ Output:
 
     All 3 sub-tasks completed successfully.
 
+Note: v0.1 plans and assigns sub-tasks correctly. Real dispatch (sending
+task.run messages to agents over hawk-bus) is in progress — agents need to
+register their bus subscriptions at spawn time for end-to-end execution.
+
 ---
 
 SDK SCAFFOLDING
@@ -340,24 +344,17 @@ Watch report (API drift + phantom dependencies):
 
     hawk watch report
 
-Output:
-
-    Watch Report -- generated at 2026-05-03T13:12:09Z
-    ============================================================
-
-    API Drifts (0)
-      (none)
-
-    Phantom Dependencies (0)
-      (none)
-
-Token compression stats:
+Token compression stats (real data from sqz when installed):
 
     hawk stats tokens
 
-Cost tracking:
+Cost tracking per agent:
 
     hawk stats cost
+
+Live CPU and memory per agent (via sysinfo):
+
+    hawk ps
 
 ---
 
@@ -410,7 +407,10 @@ Re-enable declined patterns:
 
 SELF-HEALING
 
-When an agent fails, OpenHawk reverts to the last snapshot, adjusts parameters, and retries (up to the configured max_retries).
+When an agent fails, OpenHawk rolls back to the most recent snapshot and logs
+a healing event. The caller (daemon or CLI) is responsible for respawning the
+agent after receiving a Recovered outcome — this keeps the healer decoupled
+from the agent manager.
 
 View healing history for an agent:
 
