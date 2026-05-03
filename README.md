@@ -271,9 +271,9 @@ Output:
 
     All 3 sub-tasks completed successfully.
 
-Note: v0.1 plans and assigns sub-tasks correctly. Real dispatch (sending
-task.run messages to agents over hawk-bus) is in progress — agents need to
-register their bus subscriptions at spawn time for end-to-end execution.
+Orchestration dispatches real task.run messages over hawk-bus to each assigned
+agent and waits for task.done / task.failed replies (30s timeout per subtask).
+Agents that don't have a bus client fall back to local execution automatically.
 
 ---
 
@@ -352,9 +352,14 @@ Cost tracking per agent:
 
     hawk stats cost
 
-Live CPU and memory per agent (via sysinfo):
+Live CPU and memory per agent:
 
     hawk ps
+
+Output:
+
+    PID    NAME                 STATE      UPTIME
+    42981  python research_a... Running    00:01:23   CPU: 2.1%   MEM: 48MB
 
 ---
 
@@ -407,10 +412,10 @@ Re-enable declined patterns:
 
 SELF-HEALING
 
-When an agent fails, OpenHawk rolls back to the most recent snapshot and logs
-a healing event. The caller (daemon or CLI) is responsible for respawning the
-agent after receiving a Recovered outcome — this keeps the healer decoupled
-from the agent manager.
+When an agent fails, OpenHawk rolls back to the most recent snapshot, restoring
+all files to their pre-task state, then returns a Recovered outcome so the
+daemon can respawn the agent. Up to max_retries attempts are made before
+escalating.
 
 View healing history for an agent:
 
