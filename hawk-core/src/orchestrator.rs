@@ -231,6 +231,8 @@ fn best_agent<'a>(agents: &'a [AgentCapabilityRecord], required: &[String]) -> O
 }
 
 pub fn topological_sort(n: usize, deps: &[(usize, usize)]) -> Option<Vec<usize>> {
+    use std::collections::VecDeque;
+
     let mut in_degree = vec![0usize; n];
     let mut adj: HashMap<usize, Vec<usize>> = HashMap::new();
 
@@ -240,17 +242,17 @@ pub fn topological_sort(n: usize, deps: &[(usize, usize)]) -> Option<Vec<usize>>
         adj.entry(dep).or_default().push(dependent);
     }
 
-    let mut queue: Vec<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
+    // Use VecDeque for O(1) pop_front instead of Vec::remove(0) which is O(n)
+    let mut queue: VecDeque<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
     let mut order = Vec::with_capacity(n);
 
-    while let Some(node) = queue.first().copied() {
-        queue.remove(0);
+    while let Some(node) = queue.pop_front() {
         order.push(node);
         if let Some(neighbors) = adj.get(&node) {
             for &nb in neighbors {
                 in_degree[nb] -= 1;
                 if in_degree[nb] == 0 {
-                    queue.push(nb);
+                    queue.push_back(nb);
                 }
             }
         }
@@ -263,6 +265,10 @@ fn simulate_execute(subtask: &SubTask) -> std::result::Result<(), String> {
     if subtask.assigned_agent.is_none() {
         return Err("no agent assigned".to_string());
     }
+    // v0.1: execution is simulated — the subtask description is recorded and
+    // marked complete. Real dispatch (publishing a task.run message to the
+    // assigned agent over hawk-bus) will be wired in a future release once
+    // agents register their bus subscriptions at spawn time.
     Ok(())
 }
 
