@@ -339,7 +339,63 @@ All LLM requests route to local providers only (Ollama, llama.cpp). HawkNest use
 
 ---
 
-## Project structure
+## Architecture
+
+OpenHawk is the kernel. The five companion tools are satellites — each does one job, OpenHawk wires them together.
+
+```mermaid
+graph TD
+    USER(["👤 User / Agent Framework\nCrewAI · LangGraph · AutoGen · scripts"])
+
+    subgraph OPENHAWK["⚙️  OpenHawk Kernel"]
+        CLI["openhawk CLI\nhawk-cli"]
+        CORE["hawk-core\nlifecycle · orchestration\nhealing · patterns · config"]
+        BUS["hawk-bus\nJSON-RPC 2.0 message bus"]
+        VAULT["hawk-vault\nAES-256-GCM secrets"]
+        SNAP["hawk-savepoint\nCoW filesystem snapshots"]
+        UI["hawk-ui\nratatui TUI dashboard"]
+    end
+
+    SQZ["🗜️  sqz\nLLM token compression\n60–92% savings on repeated reads\ngithub.com/ojuschugh1/sqz"]
+    GHOSTDEP["👻  ghostdep\nPhantom dependency detector\nfinds unused & missing packages\ngithub.com/ojuschugh1/ghostdep"]
+    ETCH["📡  etch\nAPI drift detection\nrecord · diff · approve responses\ngithub.com/ojuschugh1/etch"]
+    CLAIMCHECK["✅  claimcheck\nAgent claim verifier\nchecks files · git · lockfiles\ngithub.com/ojuschugh1/claimcheck"]
+    AURA["🧠  aura\nPersistent cross-session memory\nwiki · MCP proxy · OWASP scoring\ngithub.com/ojuschugh1/aura"]
+
+    USER -->|"openhawk run / orchestrate"| CLI
+    CLI --> CORE
+    CORE --> BUS
+    CORE --> VAULT
+    CORE --> SNAP
+
+    CORE -->|"hawk-compress\ntoken savings"| SQZ
+    CORE -->|"hawk-watch\ndependency scan"| GHOSTDEP
+    CORE -->|"hawk-watch\nAPI drift"| ETCH
+    CORE -->|"hawk-verify\nclaim audit"| CLAIMCHECK
+    CORE -->|"hawk-memory\ncontext store"| AURA
+
+    CLI --> UI
+
+    style OPENHAWK fill:#1e1e2e,stroke:#cba6f7,color:#cdd6f4
+    style SQZ fill:#313244,stroke:#a6e3a1,color:#cdd6f4
+    style GHOSTDEP fill:#313244,stroke:#fab387,color:#cdd6f4
+    style ETCH fill:#313244,stroke:#89dceb,color:#cdd6f4
+    style CLAIMCHECK fill:#313244,stroke:#f38ba8,color:#cdd6f4
+    style AURA fill:#313244,stroke:#cba6f7,color:#cdd6f4
+    style USER fill:#45475a,stroke:#6c7086,color:#cdd6f4
+```
+
+### Companion tools
+
+| Tool | Role in OpenHawk | Repo |
+|---|---|---|
+| **sqz** | `hawk-compress` calls `sqz compress` to shrink LLM context before it reaches the model. `hawk stats tokens` shows real sqz SQLite stats. | [ojuschugh1/sqz](https://github.com/ojuschugh1/sqz) |
+| **ghostdep** | `hawk-watch` calls `ghostdep -p <path> -f json` to find phantom and unused dependencies. Results stored in SQLite, surfaced in `openhawk watch report`. | [ojuschugh1/ghostdep](https://github.com/ojuschugh1/ghostdep) |
+| **etch** | `hawk-watch` calls `etch test --ci --format json` to detect API drift between recorded and live responses. | [ojuschugh1/etch](https://github.com/ojuschugh1/etch) |
+| **claimcheck** | `hawk-verify` calls `claimcheck <transcript.jsonl>` to audit whether an agent actually wrote the files, made the git commits, and updated the lockfiles it claimed to. | [ojuschugh1/claimcheck](https://github.com/ojuschugh1/claimcheck) |
+| **aura** | `hawk-memory` delegates to `aura memory add/get/ls/rm` for persistent cross-session context. Falls back to in-memory store when aura isn't running. | [ojuschugh1/aura](https://github.com/ojuschugh1/aura) |
+
+All five tools are installed automatically by `openhawk setup --yes` and fall back gracefully when not present.
 
 ```
 openhawk/
