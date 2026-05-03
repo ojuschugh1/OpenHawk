@@ -66,18 +66,91 @@ impl SelfHealer {
     pub fn attempt_healing(&self, agent_pid: u32, error: &str) -> Result<HealingOutcome, HealerError> {
         for attempt in 1..=self.max_retries {
             let adjustment = adjustment_for(attempt);
-            // Simulate: succeed on first attempt unless always_fail, or if this is the last attempt
-            let succeeded = !self.always_fail && attempt < self.max_retries;
 
-            if succeeded {
-                self.log_event(agent_pid, error, adjustment, "Success", attempt)?;
-                return Ok(HealingOutcome::Recovered { attempt, adjustment: adjustment.to_string() });
+            // v0.1 simulation path (used in tests via new_with_simulator)
+            if self.always_fail {
+                continue;
             }
+
+            // Real healing strategy:
+            // 1. Roll back to the most recent snapshot for this agent
+            // 2. Log the healing event
+            // 3. Return Recovered so the caller can respawn the agent
+            //
+            // The actual respawn is the caller's responsibility because
+            // SelfHealer doesn't hold an AgentManager reference (avoids
+            // circular ownership). The CLI / daemon layer calls
+            // agent_manager.spawn(manifest) after receiving Recovered.
+            let rollback_note = self.try_rollback(agent_pid);
+            let adjustment_with_note = if let Some(ref note) = rollback_note {
+                format!("{adjustment}+{note}")
+            } else {
+                adjustment.to_string()
+            };
+
+            self.log_event(agent_pid, error, &adjustment_with_note, "Success", attempt)?;
+            return Ok(HealingOutcome::Recovered {
+                attempt,
+                adjustment: adjustment_with_note,
+            });
         }
 
         let last_adjustment = adjustment_for(self.max_retries);
         self.log_event(agent_pid, error, last_adjustment, "Failure", self.max_retries)?;
         Ok(HealingOutcome::Escalated { attempts: self.max_retries, last_error: error.to_string() })
+    }
+
+    /// Attempt to roll back the agent's working directory to its most recent
+    /// snapshot. Returns a short note describing what happened, or None if
+    /// no snapshot exists or the rollback fails.
+    fn try_rollback(&self, agent_pid: u32) -> Option<String> {
+        // Look up the most recent snapshot for this agent
+        let result: rusqlite::Result<(String, String)> = self.db.query_row(
+            "SELECT id, working_dir FROM snapshots WHERE agent_pid = ?1 \
+             ORDER BY timestamp DESC LIMIT 1",
+            params![agent_pid],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        );
+
+        let (snapshot_id, working_dir) = match result {
+            Ok(row) => row,
+            Err(_) => return None, // no snapshot available
+        };
+
+        // Restore snapshot files: copy from snapshot dir back to working_dir
+        let snap_base = dirs_next::data_local_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("hawk")
+            .join("snapshots");
+        let snap_dir = snap_base.join(&snapshot_id);
+        let work_dir = std::path::PathBuf::from(&working_dir);
+
+        // Fetch file list from DB
+        let mut stmt = match self.db.prepare(
+            "SELECT file_path FROM snapshot_files WHERE snapshot_id = ?1",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Some("rollback_failed:db_error".into()),
+        };
+
+        let paths: Vec<String> = match stmt.query_map(params![snapshot_id], |r| r.get(0)) {
+            Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+            Err(_) => return Some("rollback_failed:query_error".into()),
+        };
+
+        let mut restored = 0u32;
+        for rel_path in &paths {
+            let src = snap_dir.join(rel_path);
+            let dest = work_dir.join(rel_path);
+            if let Some(parent) = dest.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if std::fs::copy(&src, &dest).is_ok() {
+                restored += 1;
+            }
+        }
+
+        Some(format!("snapshot_rollback:{snapshot_id}:{restored}_files"))
     }
 
     pub fn get_history(&self, agent_pid: u32) -> Result<Vec<HealingEvent>, HealerError> {
